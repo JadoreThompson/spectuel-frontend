@@ -1,7 +1,7 @@
-import { useCreateOrderMutation } from '@/hooks/useOrderHooks'
+import { useCreateOrderMutation } from '@/hooks/order-hooks'
 import { cn } from '@/lib/utils'
 import { OrderType, Side, StrategyType, type OrderRead } from '@/openapi'
-import { useState, type FC } from 'react'
+import React, { useState, type FC } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import {
@@ -55,8 +55,10 @@ const SpotOrderForm: FC<{
             const response = await createOrderMutation.mutateAsync(orderData)
 
             if (response.status === 202) {
+                // console.log('Current target', e.currentTarget)
+                // console.log('Event', e)
+                // ;(e.target as HTMLFormElement).reset()
                 props.onOrderPlaced(response.data.order)
-                e.currentTarget.reset()
             }
         } catch (error: any) {
             const errorMessage =

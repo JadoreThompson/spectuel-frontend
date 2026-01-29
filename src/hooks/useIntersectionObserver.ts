@@ -22,4 +22,4 @@ const useIntersectionObserver = (callback: () => void) => {
     return ref
 }
 
-export default useIntersectionObserver;
+export default useIntersectionObserver

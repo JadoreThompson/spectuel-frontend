@@ -1,10 +1,10 @@
 // src/components/tables/OpenOrdersTable.tsx
 
-import useIntersectionObserver from '@/hooks/useIntersectionObserver'
 import {
     useCancelOrderMutation,
     useModifyOrderMutation,
-} from '@/hooks/useOrderHooks'
+} from '@/hooks/order-hooks'
+import useIntersectionObserver from '@/hooks/useIntersectionObserver'
 import type { OrderTableProps } from '@/lib/props/tableProps.'
 import { cn, formatUnderscore } from '@/lib/utils'
 import { OrderType, Side, type OrderRead } from '@/openapi'

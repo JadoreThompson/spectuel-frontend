@@ -5,6 +5,39 @@
  * OpenAPI spec version: 0.1.0
  */
 import { customFetch } from './lib/custom-fetch'
+export interface AssetBalanceItem {
+    symbol: string
+    quantity: number
+}
+
+export type BalanceEventReadPayload = { [key: string]: unknown }
+
+export interface BalanceEventRead {
+    event_id: string
+    user_id: string
+    command_id: string
+    type: string
+    version: number
+    symbol: string | null
+    payload: BalanceEventReadPayload
+    timestamp: number
+}
+
+export interface BarData {
+    symbol: string
+    timeframe: string
+    timestamp: number
+    open: number
+    high: number
+    low: number
+    close: number
+}
+
+export interface BarsResponse {
+    bars: BarData[]
+    next_page_token?: string | null
+}
+
 export interface ContactForm {
     name: string
     email: string
@@ -122,9 +155,37 @@ export interface OTOOrderResponse {
     child: OrderRead
 }
 
+export type OrderEventReadPayload = { [key: string]: unknown }
+
+export interface OrderEventRead {
+    event_id: string
+    order_id: string
+    user_id: string
+    command_id: string
+    type: string
+    version: number
+    symbol: string
+    payload: OrderEventReadPayload
+    timestamp: number
+}
+
 export interface OrderModify {
     limit_price?: number | null
     stop_price?: number | null
+}
+
+export interface PaginatedResponseBalanceEventRead {
+    page: number
+    size: number
+    has_next: boolean
+    data: BalanceEventRead[]
+}
+
+export interface PaginatedResponseOrderEventRead {
+    page: number
+    size: number
+    has_next: boolean
+    data: OrderEventRead[]
 }
 
 export interface PaginatedResponseOrderRead {
@@ -147,6 +208,17 @@ export interface SingleOrderCreate {
 export interface SingleOrderResponse {
     order: OrderRead
 }
+
+export type TimeFrame = (typeof TimeFrame)[keyof typeof TimeFrame]
+
+export const TimeFrame = {
+    '1m': '1m',
+    '5m': '5m',
+    '15m': '15m',
+    '1h': '1h',
+    '4h': '4h',
+    '1d': '1d',
+} as const
 
 export interface UpdateEmail {
     email: string
@@ -194,6 +266,10 @@ export interface VerifyCode {
     code: string
 }
 
+export interface WsTokenResponse {
+    token: string
+}
+
 export type GetOrdersOrdersGetParams = {
     /**
      * @minimum 1
@@ -212,6 +288,42 @@ export const GetOrdersOrdersGetOrderBy = {
     asc: 'asc',
     desc: 'desc',
 } as const
+
+export type GetUserEventsUserEventsGetParams = {
+    type: GetUserEventsUserEventsGetType
+    symbol?: string | null
+    /**
+     * @minimum 0
+     */
+    skip?: number
+    /**
+     * @minimum 1
+     * @maximum 100
+     */
+    limit?: number
+}
+
+export type GetUserEventsUserEventsGetType =
+    (typeof GetUserEventsUserEventsGetType)[keyof typeof GetUserEventsUserEventsGetType]
+
+export const GetUserEventsUserEventsGetType = {
+    balance: 'balance',
+    order: 'order',
+} as const
+
+export type GetAssetBalancesUserAssetBalancesGetParams = {
+    /**
+     * Comma-separated list of symbols (e.g., BTCUSD,ETHUSD)
+     */
+    symbols?: string | null
+}
+
+export type GetMarketBarsMarketsSymbolBarsGetParams = {
+    timeframe: TimeFrame
+    start_date?: number | null
+    end_date?: number | null
+    next_page_token?: string | null
+}
 
 /**
  * @summary Login
@@ -437,6 +549,38 @@ export const getMeAuthMeGet = async (
         ...options,
         method: 'GET',
     })
+}
+
+/**
+ * Generate a WebSocket authentication token.
+ * @summary Get Ws Token
+ */
+export type getWsTokenAuthWsTokenGetResponse200 = {
+    data: WsTokenResponse
+    status: 200
+}
+
+export type getWsTokenAuthWsTokenGetResponseSuccess =
+    getWsTokenAuthWsTokenGetResponse200 & {
+        headers: Headers
+    }
+export type getWsTokenAuthWsTokenGetResponse =
+    getWsTokenAuthWsTokenGetResponseSuccess
+
+export const getGetWsTokenAuthWsTokenGetUrl = () => {
+    return `/auth/ws-token`
+}
+
+export const getWsTokenAuthWsTokenGet = async (
+    options?: RequestInit
+): Promise<getWsTokenAuthWsTokenGetResponse> => {
+    return customFetch<getWsTokenAuthWsTokenGetResponse>(
+        getGetWsTokenAuthWsTokenGetUrl(),
+        {
+            ...options,
+            method: 'GET',
+        }
+    )
 }
 
 /**
@@ -1174,6 +1318,196 @@ export const getUserOverviewUserGet = async (
 ): Promise<getUserOverviewUserGetResponse> => {
     return customFetch<getUserOverviewUserGetResponse>(
         getGetUserOverviewUserGetUrl(),
+        {
+            ...options,
+            method: 'GET',
+        }
+    )
+}
+
+/**
+ * Retrieves user events (order or balance) with optional symbol filtering.
+Returns events in descending order of timestamp.
+ * @summary Get User Events
+ */
+export type getUserEventsUserEventsGetResponse200 = {
+    data: PaginatedResponseOrderEventRead | PaginatedResponseBalanceEventRead
+    status: 200
+}
+
+export type getUserEventsUserEventsGetResponse422 = {
+    data: HTTPValidationError
+    status: 422
+}
+
+export type getUserEventsUserEventsGetResponseSuccess =
+    getUserEventsUserEventsGetResponse200 & {
+        headers: Headers
+    }
+export type getUserEventsUserEventsGetResponseError =
+    getUserEventsUserEventsGetResponse422 & {
+        headers: Headers
+    }
+
+export type getUserEventsUserEventsGetResponse =
+    | getUserEventsUserEventsGetResponseSuccess
+    | getUserEventsUserEventsGetResponseError
+
+export const getGetUserEventsUserEventsGetUrl = (
+    params: GetUserEventsUserEventsGetParams
+) => {
+    const normalizedParams = new URLSearchParams()
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(
+                key,
+                value === null ? 'null' : value.toString()
+            )
+        }
+    })
+
+    const stringifiedParams = normalizedParams.toString()
+
+    return stringifiedParams.length > 0
+        ? `/user/events?${stringifiedParams}`
+        : `/user/events`
+}
+
+export const getUserEventsUserEventsGet = async (
+    params: GetUserEventsUserEventsGetParams,
+    options?: RequestInit
+): Promise<getUserEventsUserEventsGetResponse> => {
+    return customFetch<getUserEventsUserEventsGetResponse>(
+        getGetUserEventsUserEventsGetUrl(params),
+        {
+            ...options,
+            method: 'GET',
+        }
+    )
+}
+
+/**
+ * Retrieves asset balances for the authenticated user.
+Optionally filter by comma-separated list of symbols.
+
+Example: /user/asset-balances?symbols=BTCUSD,ETHUSD
+ * @summary Get Asset Balances
+ */
+export type getAssetBalancesUserAssetBalancesGetResponse200 = {
+    data: AssetBalanceItem[]
+    status: 200
+}
+
+export type getAssetBalancesUserAssetBalancesGetResponse422 = {
+    data: HTTPValidationError
+    status: 422
+}
+
+export type getAssetBalancesUserAssetBalancesGetResponseSuccess =
+    getAssetBalancesUserAssetBalancesGetResponse200 & {
+        headers: Headers
+    }
+export type getAssetBalancesUserAssetBalancesGetResponseError =
+    getAssetBalancesUserAssetBalancesGetResponse422 & {
+        headers: Headers
+    }
+
+export type getAssetBalancesUserAssetBalancesGetResponse =
+    | getAssetBalancesUserAssetBalancesGetResponseSuccess
+    | getAssetBalancesUserAssetBalancesGetResponseError
+
+export const getGetAssetBalancesUserAssetBalancesGetUrl = (
+    params?: GetAssetBalancesUserAssetBalancesGetParams
+) => {
+    const normalizedParams = new URLSearchParams()
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(
+                key,
+                value === null ? 'null' : value.toString()
+            )
+        }
+    })
+
+    const stringifiedParams = normalizedParams.toString()
+
+    return stringifiedParams.length > 0
+        ? `/user/asset-balances?${stringifiedParams}`
+        : `/user/asset-balances`
+}
+
+export const getAssetBalancesUserAssetBalancesGet = async (
+    params?: GetAssetBalancesUserAssetBalancesGetParams,
+    options?: RequestInit
+): Promise<getAssetBalancesUserAssetBalancesGetResponse> => {
+    return customFetch<getAssetBalancesUserAssetBalancesGetResponse>(
+        getGetAssetBalancesUserAssetBalancesGetUrl(params),
+        {
+            ...options,
+            method: 'GET',
+        }
+    )
+}
+
+/**
+ * Retrieves OHLC bars for a given symbol and timeframe.
+Supports pagination via next_page_token.
+ * @summary Get Market Bars
+ */
+export type getMarketBarsMarketsSymbolBarsGetResponse200 = {
+    data: BarsResponse
+    status: 200
+}
+
+export type getMarketBarsMarketsSymbolBarsGetResponse422 = {
+    data: HTTPValidationError
+    status: 422
+}
+
+export type getMarketBarsMarketsSymbolBarsGetResponseSuccess =
+    getMarketBarsMarketsSymbolBarsGetResponse200 & {
+        headers: Headers
+    }
+export type getMarketBarsMarketsSymbolBarsGetResponseError =
+    getMarketBarsMarketsSymbolBarsGetResponse422 & {
+        headers: Headers
+    }
+
+export type getMarketBarsMarketsSymbolBarsGetResponse =
+    | getMarketBarsMarketsSymbolBarsGetResponseSuccess
+    | getMarketBarsMarketsSymbolBarsGetResponseError
+
+export const getGetMarketBarsMarketsSymbolBarsGetUrl = (
+    symbol: string,
+    params: GetMarketBarsMarketsSymbolBarsGetParams
+) => {
+    const normalizedParams = new URLSearchParams()
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(
+                key,
+                value === null ? 'null' : value.toString()
+            )
+        }
+    })
+
+    const stringifiedParams = normalizedParams.toString()
+
+    return stringifiedParams.length > 0
+        ? `/markets/${symbol}/bars?${stringifiedParams}`
+        : `/markets/${symbol}/bars`
+}
+
+export const getMarketBarsMarketsSymbolBarsGet = async (
+    symbol: string,
+    params: GetMarketBarsMarketsSymbolBarsGetParams,
+    options?: RequestInit
+): Promise<getMarketBarsMarketsSymbolBarsGetResponse> => {
+    return customFetch<getMarketBarsMarketsSymbolBarsGetResponse>(
+        getGetMarketBarsMarketsSymbolBarsGetUrl(symbol, params),
         {
             ...options,
             method: 'GET',
