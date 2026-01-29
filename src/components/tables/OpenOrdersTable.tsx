@@ -1,24 +1,25 @@
 // src/components/tables/OpenOrdersTable.tsx
 
 import useIntersectionObserver from '@/hooks/useIntersectionObserver'
-import { useModifyOrderMutation, useCancelOrderMutation } from '@/hooks/useOrderHooks'
+import {
+    useCancelOrderMutation,
+    useModifyOrderMutation,
+} from '@/hooks/useOrderHooks'
 import type { OrderTableProps } from '@/lib/props/tableProps.'
-import type { Order } from '@/lib/types/apiTypes/order'
-import { OrderType } from '@/lib/types/orderType'
-import { Side } from '@/lib/types/side'
 import { cn, formatUnderscore } from '@/lib/utils'
+import { OrderType, Side, type OrderRead } from '@/openapi'
 import { Pencil, X } from 'lucide-react'
 import React, { useCallback, useState, type FC } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 
 // --- TYPE DEFINITIONS ---
-type ModalState = { type: 'modify' | 'cancel'; order: Order } | null
+type ModalState = { type: 'modify' | 'cancel'; order: OrderRead } | null
 
 // --- MODAL COMPONENTS (Simplified) ---
 
 const ModifyModal: FC<{
-    order: Order
+    order: OrderRead
     onSubmit: (data: {
         limit_price?: number
         stop_price?: number
@@ -28,8 +29,8 @@ const ModifyModal: FC<{
 }> = (props) => {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const isModifiable =
-        props.order.order_type === OrderType.LIMIT ||
-        props.order.order_type === OrderType.STOP
+        props.order.order_type === OrderType.limit ||
+        props.order.order_type === OrderType.stop
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -39,11 +40,11 @@ const ModifyModal: FC<{
         const formData = new FormData(e.currentTarget)
         const payload: { limit_price?: number; stop_price?: number } = {}
 
-        if (props.order.order_type === OrderType.LIMIT) {
+        if (props.order.order_type === OrderType.limit) {
             const limitPrice = parseFloat(formData.get('limit_price') as string)
             if (!isNaN(limitPrice) && limitPrice > 0)
                 payload.limit_price = limitPrice
-        } else if (props.order.order_type === OrderType.STOP) {
+        } else if (props.order.order_type === OrderType.stop) {
             const stopPrice = parseFloat(formData.get('stop_price') as string)
             if (!isNaN(stopPrice) && stopPrice > 0)
                 payload.stop_price = stopPrice
@@ -61,11 +62,11 @@ const ModifyModal: FC<{
                 className="w-[400px] p-6 border border-neutral-800 rounded-xl space-y-4 shadow-lg bg-background"
             >
                 <h2 className="text-lg font-semibold">
-                    Modify Order: {props.order.instrument_id}
+                    Modify Order: {props.order.symbol}
                 </h2>
                 {isModifiable ? (
                     <>
-                        {props.order.order_type === OrderType.LIMIT && (
+                        {props.order.order_type === OrderType.limit && (
                             <div>
                                 <label className="block text-sm mb-1 text-muted-foreground">
                                     New Limit Price
@@ -81,7 +82,7 @@ const ModifyModal: FC<{
                                 />
                             </div>
                         )}
-                        {props.order.order_type === OrderType.STOP && (
+                        {props.order.order_type === OrderType.stop && (
                             <div>
                                 <label className="block text-sm mb-1 text-muted-foreground">
                                     New Stop Price
@@ -129,7 +130,7 @@ const ModifyModal: FC<{
 }
 
 const CancelModal: FC<{
-    order: Order
+    order: OrderRead
     onSubmit: () => Promise<boolean>
     onClose: () => void
     error: string | null
@@ -153,7 +154,7 @@ const CancelModal: FC<{
                     Are you sure you want to cancel your{' '}
                     {formatUnderscore(props.order.order_type)} order for{' '}
                     <span className="font-semibold text-white">
-                        {props.order.quantity} of {props.order.instrument_id}
+                        {props.order.quantity} of {props.order.symbol}
                     </span>
                     ?
                 </p>
@@ -188,7 +189,7 @@ const CancelModal: FC<{
 // --- ORDER DETAIL ROW (Restored Original Style) ---
 
 const OrderDetailRow: FC<{
-    order: Order
+    order: OrderRead
     showActions: boolean
     onModify: () => void
     onCancel: () => void
@@ -199,11 +200,11 @@ const OrderDetailRow: FC<{
                 <div className="w-full flex justify-between">
                     <div className="flex flex-col">
                         <span className="w-fit text-md font-bold mb-1">
-                            {props.order.instrument_id}
+                            {props.order.symbol}
                         </span>
                         <div className="flex flex-row gap-2">
                             <span
-                                className={`w-fit py-1 px-2 rounded-sm text-xs ${props.order.side === Side.BID ? 'bg-green-500/20 text-[var(--green)]' : 'bg-red-500/20 text-[var(--red)]'}`}
+                                className={`w-fit py-1 px-2 rounded-sm text-xs ${props.order.side === Side.bid ? 'bg-green-500/20 text-[var(--green)]' : 'bg-red-500/20 text-[var(--red)]'}`}
                             >
                                 {formatUnderscore(props.order.side)}
                             </span>
@@ -223,8 +224,14 @@ const OrderDetailRow: FC<{
                                 label: 'Avg Filled Price',
                                 value: props.order.avg_fill_price,
                             },
-                            { label: 'Limit Price', value: props.order.limit_price },
-                            { label: 'Stop Price', value: props.order.stop_price },
+                            {
+                                label: 'Limit Price',
+                                value: props.order.limit_price,
+                            },
+                            {
+                                label: 'Stop Price',
+                                value: props.order.stop_price,
+                            },
                             {
                                 label: 'Executed Quantity',
                                 value: props.order.executed_quantity,
@@ -244,7 +251,9 @@ const OrderDetailRow: FC<{
                         <div className="flex flex-row items-center justify-end gap-3">
                             <Button
                                 type="button"
-                                disabled={props.order.order_type === OrderType.MARKET}
+                                disabled={
+                                    props.order.order_type === OrderType.market
+                                }
                                 onClick={props.onModify}
                                 className="h-8 w-20 rounded-md"
                             >
@@ -268,17 +277,19 @@ const OrderDetailRow: FC<{
 
 // --- MAIN COMPONENT ---
 
-const OpenOrdersTable: FC<OrderTableProps & { showActions: boolean }> = (props) => {
+const OpenOrdersTable: FC<OrderTableProps & { showActions: boolean }> = (
+    props
+) => {
     const [modalState, setModalState] = useState<ModalState>(null)
-    const [focusedOrder, setFocusedOrder] = useState<Order | null>(null)
+    const [focusedOrder, setFocusedOrder] = useState<OrderRead | null>(null)
     const [error, setError] = useState<string | null>(null)
     const tableBottomRef = useIntersectionObserver(props.onScrollEnd)
 
     const modifyOrderMutation = useModifyOrderMutation()
     const cancelOrderMutation = useCancelOrderMutation()
 
-    const handleRowClick = useCallback((order: Order) => {
-        setFocusedOrder((prev) =>
+    const handleRowClick = useCallback((order: OrderRead) => {
+        setFocusedOrder((prev: OrderRead | null) =>
             prev?.order_id === order.order_id ? null : order
         )
     }, [])
@@ -307,7 +318,8 @@ const OpenOrdersTable: FC<OrderTableProps & { showActions: boolean }> = (props) 
             }
         } catch (err: any) {
             // The customFetch throws an object with { status, data, headers }
-            const errorMessage = err?.data?.error || err?.message || 'An unknown error occurred.'
+            const errorMessage =
+                err?.data?.error || err?.message || 'An unknown error occurred.'
             setError(errorMessage)
             return false
         }
@@ -326,7 +338,8 @@ const OpenOrdersTable: FC<OrderTableProps & { showActions: boolean }> = (props) 
             }
         } catch (err: any) {
             // The customFetch throws an object with { status, data, headers }
-            const errorMessage = err?.data?.error || err?.message || 'An unknown error occurred.'
+            const errorMessage =
+                err?.data?.error || err?.message || 'An unknown error occurred.'
             setError(errorMessage)
             return false
         }
@@ -382,16 +395,16 @@ const OpenOrdersTable: FC<OrderTableProps & { showActions: boolean }> = (props) 
                                 </td>
                             </tr>
                         ) : (
-                            props.orders.map((order: Order) => (
+                            props.orders.map((order: OrderRead) => (
                                 <React.Fragment key={order.order_id}>
                                     <tr
                                         className="h-10 border-t border-neutral-800 hover:bg-neutral-800/50 cursor-pointer"
                                         onClick={() => handleRowClick(order)}
                                     >
-                                        <td>{order.instrument_id}</td>
+                                        <td>{order.symbol}</td>
                                         <td
                                             className={cn(
-                                                order.side === Side.BID
+                                                order.side === Side.bid
                                                     ? 'text-[var(--green)]'
                                                     : 'text-[var(--red)]'
                                             )}
@@ -417,14 +430,14 @@ const OpenOrdersTable: FC<OrderTableProps & { showActions: boolean }> = (props) 
                                                         className={cn(
                                                             'size-4 cursor-pointer text-neutral-400 hover:text-white',
                                                             order.order_type ===
-                                                                OrderType.MARKET &&
+                                                                OrderType.market &&
                                                                 'cursor-not-allowed opacity-30'
                                                         )}
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             if (
                                                                 order.order_type !==
-                                                                OrderType.MARKET
+                                                                OrderType.market
                                                             )
                                                                 setModalState({
                                                                     type: 'modify',

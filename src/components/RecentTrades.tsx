@@ -1,6 +1,12 @@
-import { Side } from '@/lib/types/side'
-import type { TradeEvent } from '@/lib/types/tradeEvent'
+import { Side } from '@/openapi'
 import type { FC } from 'react'
+
+interface TradeEvent {
+    price: number
+    quantity: number
+    side: Side
+    executed_at: string
+}
 
 const RecentTrades: FC<{ trades: TradeEvent[] }> = ({ trades }) => {
     const formatDate = (value: string) => {
@@ -17,7 +23,7 @@ const RecentTrades: FC<{ trades: TradeEvent[] }> = ({ trades }) => {
                     <div key={idx} className="flex justify-between text-xs">
                         <span
                             className={
-                                t.side === Side.BID
+                                t.side === Side.bid
                                     ? 'text-green-500'
                                     : 'text-red-500'
                             }

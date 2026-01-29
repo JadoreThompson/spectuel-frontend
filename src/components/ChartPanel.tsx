@@ -1,4 +1,3 @@
-import { TimeFrame } from '@/lib/types/timeframe'
 import {
     CandlestickSeries,
     ColorType,
@@ -13,6 +12,14 @@ import { useEffect, useRef, useState, type FC, type RefObject } from 'react'
 import InstrumentSelector from './InstrumentSelector'
 import Logo from './Logo'
 import { Button } from './ui/button'
+
+enum TimeFrame {
+    M5 = '5m',
+    M15 = '15m',
+    H1 = '1h',
+    H4 = '4h',
+    D1 = '1d',
+}
 
 const ChartPanel: FC<{
     instrument: string

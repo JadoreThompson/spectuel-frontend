@@ -15,7 +15,6 @@ const Header: FC = () => {
                         rightLensClassName="w-3 h-3 right-1"
                     />
                 </div>
-                
             </div>
             <div className="w-fit h-full flex flex-row items-center gap-2 px-2">
                 <Link to="#" className="relative ">

@@ -9,14 +9,7 @@ import OpenOrdersTable from '@/components/tables/OpenOrdersTable'
 import OrderHistoryTable from '@/components/tables/OrderHistoryTable'
 import { Button } from '@/components/ui/button'
 
-import { EventType } from '@/lib/types/apiTypes/eventType'
-import type { Instrument24h } from '@/lib/types/apiTypes/instrumentSummary'
-import type { Order } from '@/lib/types/apiTypes/order'
-import { OrderStatus } from '@/lib/types/orderStatus'
-import { OrderType } from '@/lib/types/orderType'
-import { Side } from '@/lib/types/side'
-import { TimeFrame } from '@/lib/types/timeframe'
-import type { TradeEvent as Trade } from '@/lib/types/tradeEvent'
+import { OrderStatus, OrderType, Side, type OrderRead } from '@/openapi'
 import {
     type CandlestickData,
     type ISeriesApi,
@@ -24,6 +17,42 @@ import {
 } from 'lightweight-charts'
 import { ChevronUp } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FC } from 'react'
+
+// Custom types not in OpenAPI spec
+enum TimeFrame {
+    M5 = '5m',
+    M15 = '15m',
+    H1 = '1h',
+    H4 = '4h',
+    D1 = '1d',
+}
+
+interface TradeEvent {
+    price: number
+    quantity: number
+    side: Side
+    executed_at: string
+}
+
+type Trade = TradeEvent
+
+enum EventType {
+    ORDER_PLACED = 'order_placed',
+    ORDER_PARTIALLY_FILLED = 'order_partially_filled',
+    ORDER_FILLED = 'order_filled',
+    ORDER_CANCELLED = 'order_cancelled',
+    ORDER_MODIFIED = 'order_modified',
+    ORDER_MODIFY_REJECTED = 'order_modify_rejected',
+    ORDER_REJECTED = 'order_rejected',
+    NEW_TRADE = 'new_trade',
+}
+
+interface Instrument24h {
+    h24_volume: number
+    h24_change: number
+    h24_high: number
+    h24_low: number
+}
 
 // Constants
 const SPOT_TABS = ['orders', 'history'] as const
@@ -91,11 +120,11 @@ const generateDummyRecentTrades = (): Trade[] => {
         trades.push({
             price: Number((0.65 + (Math.random() - 0.5) * 0.01).toFixed(4)),
             quantity: Math.floor(Math.random() * 1000) + 100,
-            side: isBuy ? Side.BID : Side.ASK,
+            side: isBuy ? Side.bid : Side.ask,
             // executed_at: new Date(baseTime - i * 30000).toDateString(),
             executed_at: new Date(
                 Number.parseInt(baseTime.toFixed()) - i * 6000
-            ),
+            ).toString(),
         })
     }
 
@@ -139,123 +168,133 @@ const generateDummyEvents = (): Log[] => {
     ]
 }
 
-const generateDummyOpenOrders = (): Order[] => {
+const generateDummyOpenOrders = (): OrderRead[] => {
     return [
         {
             order_id: 'ord_8f2a1b3c',
-            instrument_id: 'TRUMP-USD',
-            side: Side.BID,
-            order_type: OrderType.LIMIT,
-            price: 0.645,
+            symbol: 'TRUMP-USD',
+            side: Side.bid,
+            order_type: OrderType.limit,
+            limit_price: 0.645,
+            stop_price: null,
+            avg_fill_price: null,
             quantity: 500,
-            filled_quantity: 0,
-            status: OrderStatus.PLACED,
+            executed_quantity: 0,
+            status: OrderStatus.placed,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 300000).toISOString(),
-            updated_at: new Date(Date.now() - 300000).toISOString(),
         },
         {
             order_id: 'ord_7e9d4c5a',
-            instrument_id: 'TRUMP-USD',
-            side: Side.ASK,
-            order_type: OrderType.LIMIT,
-            price: 0.66,
-            limit_price: null,
+            symbol: 'TRUMP-USD',
+            side: Side.ask,
+            order_type: OrderType.limit,
+            limit_price: 0.66,
             stop_price: null,
             avg_fill_price: null,
             quantity: 300,
             executed_quantity: 0,
-            status: OrderStatus.PLACED,
+            status: OrderStatus.placed,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 600000).toISOString(),
-            // updated_at: new Date(Date.now() - 600000).toISOString(),
         },
         {
             order_id: 'ord_6b8c3d2e',
-            instrument: 'TRUMP-USD',
-            side: Side.BID,
-            order_type: OrderType.LIMIT,
-            price: 0.64,
+            symbol: 'TRUMP-USD',
+            side: Side.bid,
+            order_type: OrderType.limit,
+            limit_price: 0.64,
+            stop_price: null,
+            avg_fill_price: null,
             quantity: 1000,
-            filled_quantity: 250,
-            status: OrderStatus.PARTIALLY_FILLED,
+            executed_quantity: 250,
+            status: OrderStatus.partially_filled,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 900000).toISOString(),
-            updated_at: new Date(Date.now() - 450000).toISOString(),
         },
     ]
 }
 
-const generateDummyOrderHistory = (): Order[] => {
+const generateDummyOrderHistory = (): OrderRead[] => {
     return [
         {
             order_id: 'ord_5a7b2c1d',
-            instrument: 'TRUMP-USD',
-            side: Side.BID,
-            order_type: OrderType.MARKET,
-            price: 0.652,
+            symbol: 'TRUMP-USD',
+            side: Side.bid,
+            order_type: OrderType.market,
+            limit_price: null,
+            stop_price: null,
+            avg_fill_price: 0.652,
             quantity: 200,
-            filled_quantity: 200,
-            status: OrderStatus.FILLED,
+            executed_quantity: 200,
+            status: OrderStatus.filled,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 1800000).toISOString(),
-            updated_at: new Date(Date.now() - 1795000).toISOString(),
         },
         {
             order_id: 'ord_4c6a1b9e',
-            instrument: 'TRUMP-USD',
-            side: Side.ASK,
-            order_type: OrderType.LIMIT,
-            price: 0.658,
+            symbol: 'TRUMP-USD',
+            side: Side.ask,
+            order_type: OrderType.limit,
+            limit_price: 0.658,
+            stop_price: null,
+            avg_fill_price: 0.658,
             quantity: 450,
-            filled_quantity: 450,
-            status: OrderStatus.FILLED,
+            executed_quantity: 450,
+            status: OrderStatus.filled,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 3600000).toISOString(),
-            updated_at: new Date(Date.now() - 3500000).toISOString(),
         },
         {
             order_id: 'ord_3d5e8f7a',
-            instrument: 'TRUMP-USD',
-            side: Side.BID,
-            order_type: OrderType.LIMIT,
-            price: 0.63,
+            symbol: 'TRUMP-USD',
+            side: Side.bid,
+            order_type: OrderType.limit,
+            limit_price: 0.63,
+            stop_price: null,
+            avg_fill_price: null,
             quantity: 800,
-            filled_quantity: 0,
-            status: OrderStatus.CANCELLED,
+            executed_quantity: 0,
+            status: OrderStatus.cancelled,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 7200000).toISOString(),
-            updated_at: new Date(Date.now() - 5400000).toISOString(),
         },
         {
             order_id: 'ord_2e4d7c6b',
-            instrument: 'TRUMP-USD',
-            side: Side.ASK,
-            order_type: OrderType.MARKET,
-            price: 0.649,
+            symbol: 'TRUMP-USD',
+            side: Side.ask,
+            order_type: OrderType.market,
+            limit_price: null,
+            stop_price: null,
+            avg_fill_price: 0.649,
             quantity: 150,
-            filled_quantity: 150,
-            status: OrderStatus.FILLED,
+            executed_quantity: 150,
+            status: OrderStatus.filled,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 10800000).toISOString(),
-            updated_at: new Date(Date.now() - 10795000).toISOString(),
         },
         {
             order_id: 'ord_1f3c6b5a',
-            instrument: 'TRUMP-USD',
-            side: Side.BID,
-            order_type: OrderType.LIMIT,
-            price: 0.64,
+            symbol: 'TRUMP-USD',
+            side: Side.bid,
+            order_type: OrderType.limit,
+            limit_price: 0.64,
+            stop_price: null,
+            avg_fill_price: 0.64,
             quantity: 600,
-            filled_quantity: 600,
-            status: OrderStatus.FILLED,
+            executed_quantity: 600,
+            status: OrderStatus.filled,
+            strategy_type: 'single' as const,
             created_at: new Date(Date.now() - 14400000).toISOString(),
-            updated_at: new Date(Date.now() - 14000000).toISOString(),
         },
     ]
 }
 
 const dummyInstrumentSummary: Instrument24h = {
-    instrument: 'TRUMP-USD',
-    price_change: 0.0234,
-    price_change_percent: 3.72,
-    high: 0.6789,
-    low: 0.6201,
-    volume: 1247853,
-    quote_volume: 812456.32,
+    h24_volume: 1247853,
+    h24_change: 3.72,
+    h24_high: 0.6789,
+    h24_low: 0.6201,
 }
 
 // Hooks
@@ -280,8 +319,8 @@ const useScrollToTop = () => {
 
 const SpotTableCard: FC<{
     tab: SpotTab
-    openOrders: Order[]
-    orderHistory: Order[]
+    openOrders: OrderRead[]
+    orderHistory: OrderRead[]
     handleTabChange: (value: SpotTab) => void
     handleOpenOrdersScrollEnd: () => void
     handleHistoryScrollEnd: () => void
@@ -345,8 +384,8 @@ const CloneTradingPage: FC = () => {
     const [orderBook] = useState(generateDummyOrderBook)
     const [recentTrades] = useState<Trade[]>(generateDummyRecentTrades)
     const [events] = useState<Log[]>(generateDummyEvents)
-    const [openOrders] = useState<Order[]>(generateDummyOpenOrders)
-    const [orderHistory] = useState<Order[]>(generateDummyOrderHistory)
+    const [openOrders] = useState<OrderRead[]>(generateDummyOpenOrders)
+    const [orderHistory] = useState<OrderRead[]>(generateDummyOrderHistory)
     const [balance] = useState<number>(10000.0)
     const [assetBalance] = useState<number>(2500)
     const [connectionStatus] = useState<ConnectionStatus>('connected')
@@ -427,8 +466,9 @@ const CloneTradingPage: FC = () => {
                             <SpotOrderForm
                                 balance={balance}
                                 assetBalance={assetBalance}
-                                instrument={instrument}
+                                symbol={instrument}
                                 setBalance={() => {}}
+                                onOrderPlaced={() => {}}
                             />
                         </div>
                         <div className="flex-1 h-auto max-h-fit min-h-0 sticky top-11 bg-background">

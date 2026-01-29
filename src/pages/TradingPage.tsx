@@ -10,16 +10,12 @@ import OrderHistoryTable from '@/components/tables/OrderHistoryTable'
 import { Button } from '@/components/ui/button'
 
 import { HTTP_BASE_URL, WS_BASE_URL } from '@/config'
-import type { Event } from '@/lib/types/apiTypes/event'
-import { EventType } from '@/lib/types/apiTypes/eventType'
-import type { Instrument24h } from '@/lib/types/apiTypes/instrumentSummary'
-import type { Order } from '@/lib/types/apiTypes/order'
-import type { PaginatedResponse } from '@/lib/types/apiTypes/paginatedResponse'
-import type { UserOverviewResponse } from '@/lib/types/apiTypes/userOverviewResponse'
-import { OrderStatus } from '@/lib/types/orderStatus'
-import { TimeFrame } from '@/lib/types/timeframe'
-import type { TradeEvent as Trade } from '@/lib/types/tradeEvent'
-import { type OrderRead } from '@/openapi'
+import {
+    OrderStatus,
+    Side,
+    type OrderRead,
+    type PaginatedResponseOrderRead,
+} from '@/openapi'
 import {
     type CandlestickData,
     type ISeriesApi,
@@ -28,6 +24,55 @@ import {
 import { ChevronUp } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FC } from 'react'
 import { useParams } from 'react-router'
+
+// Custom types not in OpenAPI spec
+enum TimeFrame {
+    M5 = '5m',
+    M15 = '15m',
+    H1 = '1h',
+    H4 = '4h',
+    D1 = '1d',
+}
+
+interface TradeEvent {
+    price: number
+    quantity: number
+    side: Side
+    executed_at: string
+}
+
+type Trade = TradeEvent
+
+// WebSocket and API response types not in OpenAPI spec
+interface Event {
+    event_type: EventType
+    available_balance: number
+    available_asset_balance: number
+    data: { [key: string]: any }
+}
+
+enum EventType {
+    ORDER_PLACED = 'order_placed',
+    ORDER_PARTIALLY_FILLED = 'order_partially_filled',
+    ORDER_FILLED = 'order_filled',
+    ORDER_CANCELLED = 'order_cancelled',
+    ORDER_MODIFIED = 'order_modified',
+    ORDER_MODIFY_REJECTED = 'order_modify_rejected',
+    ORDER_REJECTED = 'order_rejected',
+    NEW_TRADE = 'new_trade',
+}
+
+interface Instrument24h {
+    h24_volume: number
+    h24_change: number
+    h24_high: number
+    h24_low: number
+}
+
+interface UserOverviewResponse {
+    cash_balance: number
+    data: { [k: string]: number }
+}
 
 // Constants
 const TIMEFRAME_SECONDS = {
@@ -345,15 +390,15 @@ const useOrderManagement = (
     const [wsToken, setWsToken] = useState<string | undefined>(undefined)
     const [connectionStatus, setConnectionStatus] =
         useState<ConnectionStatus>('disconnected')
-    const [openOrders, setOpenOrders] = useState<Order[]>([])
-    const [orderHistory, setOrderHistory] = useState<Order[]>([])
+    const [openOrders, setOpenOrders] = useState<OrderRead[]>([])
+    const [orderHistory, setOrderHistory] = useState<OrderRead[]>([])
     const hasNextRef = useRef<boolean>(true)
     const pageNumRef = useRef<number>(0)
 
     const handleOrderUpdate = useCallback(
         (
-            incomingOrder: Order,
-            setter: React.Dispatch<React.SetStateAction<Order[]>>
+            incomingOrder: OrderRead,
+            setter: React.Dispatch<React.SetStateAction<OrderRead[]>>
         ) => {
             setter((prev) => {
                 const existingIndex =
@@ -393,7 +438,7 @@ const useOrderManagement = (
             })
 
             if (rsp.ok) {
-                const data: PaginatedResponse<Order> = await rsp.json()
+                const data: PaginatedResponseOrderRead = await rsp.json()
                 setOrderHistory((prev) => [...prev, ...data.data])
                 hasNextRef.current = data.has_next
             }
@@ -405,9 +450,9 @@ const useOrderManagement = (
     const fetchOpenOrders = useCallback(async () => {
         const params = new URLSearchParams()
         params.append('page', pageNumRef.current.toString())
-        params.append('status', OrderStatus.PENDING)
-        params.append('status', OrderStatus.PLACED)
-        params.append('status', OrderStatus.PARTIALLY_FILLED)
+        params.append('status', OrderStatus.pending)
+        params.append('status', OrderStatus.placed)
+        params.append('status', OrderStatus.partially_filled)
         params.append('instrument', instrument)
         params.append('order_by', 'desc')
 
@@ -417,7 +462,7 @@ const useOrderManagement = (
             })
 
             if (rsp.ok) {
-                const data: PaginatedResponse<Order> = await rsp.json()
+                const data: PaginatedResponseOrderRead = await rsp.json()
                 setOpenOrders((prev) => [...prev, ...data.data])
                 hasNextRef.current = data.has_next
             }
@@ -502,10 +547,10 @@ const useOrderManagement = (
                 )
             ) {
                 handleOrderRemoval(order.order_id)
-                handleOrderUpdate(order as Order, setOrderHistory)
+                handleOrderUpdate(order as OrderRead, setOrderHistory)
             } else {
-                handleOrderUpdate(order as Order, setOpenOrders)
-                handleOrderUpdate(order as Order, setOrderHistory)
+                handleOrderUpdate(order as OrderRead, setOpenOrders)
+                handleOrderUpdate(order as OrderRead, setOrderHistory)
             }
         }
 
@@ -528,8 +573,8 @@ const useOrderManagement = (
 
 const SpotTableCard: FC<{
     tab: SpotTab
-    openOrders: Order[]
-    orderHistory: Order[]
+    openOrders: OrderRead[]
+    orderHistory: OrderRead[]
     handleTabChange: (value: SpotTab) => void
     handleOpenOrdersScrollEnd: () => void
     handleHistoryScrollEnd: () => void
@@ -582,8 +627,8 @@ const TradingPage: FC = () => {
     const [tableTab, setTableTab] = useState<Tab>('orders')
 
     // State management
-    const [openOrders, setOpenOrders] = useState<Order[]>([])
-    const [orderHistory, setOrderHistory] = useState<Order[]>([])
+    const [openOrders, setOpenOrders] = useState<OrderRead[]>([])
+    const [orderHistory, setOrderHistory] = useState<OrderRead[]>([])
     const hasNextRef = useRef<boolean>(true)
     const pageNumRef = useRef<number>(0)
 
@@ -632,30 +677,16 @@ const TradingPage: FC = () => {
 
     // Order placed handler
     const handleOrderPlaced = useCallback((order: OrderRead) => {
-        const mappedOrder: Order = {
-            order_id: order.order_id,
-            instrument_id: order.symbol,
-            side: order.side,
-            order_type: order.order_type as any,
-            price: order.limit_price ?? order.stop_price ?? null,
-            limit_price: order.limit_price ?? null,
-            stop_price: order.stop_price ?? null,
-            avg_fill_price: order.avg_fill_price ?? null,
-            status: order.status as any,
-            quantity: order.quantity,
-            executed_quantity: order.executed_quantity,
-            created_at: order.created_at,
-        }
-        setOpenOrders((prev) => [mappedOrder, ...prev])
+        setOpenOrders((prev) => [order, ...prev])
     }, [])
 
     // Fetch functions
     const fetchOpenOrders = useCallback(async () => {
         const params = new URLSearchParams()
         params.append('page', pageNumRef.current.toString())
-        params.append('status', OrderStatus.PENDING)
-        params.append('status', OrderStatus.PLACED)
-        params.append('status', OrderStatus.PARTIALLY_FILLED)
+        params.append('status', OrderStatus.pending)
+        params.append('status', OrderStatus.placed)
+        params.append('status', OrderStatus.partially_filled)
         params.append('instrument', symbol!)
         params.append('order_by', 'desc')
 
@@ -665,7 +696,7 @@ const TradingPage: FC = () => {
             })
 
             if (rsp.ok) {
-                const data: PaginatedResponse<Order> = await rsp.json()
+                const data: PaginatedResponseOrderRead = await rsp.json()
                 setOpenOrders((prev) => [...prev, ...data.data])
                 hasNextRef.current = data.has_next
             }
@@ -686,7 +717,7 @@ const TradingPage: FC = () => {
             })
 
             if (rsp.ok) {
-                const data: PaginatedResponse<Order> = await rsp.json()
+                const data: PaginatedResponseOrderRead = await rsp.json()
                 setOrderHistory((prev) => [...prev, ...data.data])
                 hasNextRef.current = data.has_next
             }
@@ -785,7 +816,7 @@ const TradingPage: FC = () => {
                     <div className="flex-1 flex flex-col">
                         <div className="min-h-150 rounded-tl-sm rounded-tr-sm border-b-1 border-b-neutral-900 bg-background">
                             <SpotOrderForm
-                                balance={1010}
+                                balance={balance}
                                 assetBalance={assetBalance}
                                 symbol={symbol!}
                                 setBalance={

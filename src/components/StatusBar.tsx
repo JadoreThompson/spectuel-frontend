@@ -1,9 +1,14 @@
 import { HTTP_BASE_URL } from '@/config'
-import type { InstrumentSummary } from '@/lib/types/apiTypes/instrumentSummary'
 import { Wifi } from 'lucide-react'
 import { useEffect, useRef, useState, type FC } from 'react'
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected'
+
+interface InstrumentSummary {
+    instrument: string
+    price?: number
+    change_24h?: number
+}
 
 const StatusBar: FC<{
     connectionStatus: ConnectionStatus

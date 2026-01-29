@@ -1,6 +1,6 @@
 import type { OrderTableProps } from '@/lib/props/tableProps.'
-import { Side } from '@/lib/types/side'
 import { formatUnderscore } from '@/lib/utils'
+import { Side } from '@/openapi'
 import { useEffect, useRef, type FC } from 'react'
 
 const OrderHistory: FC<OrderTableProps> = ({ orders, onScrollEnd }) => {
@@ -46,10 +46,10 @@ const OrderHistory: FC<OrderTableProps> = ({ orders, onScrollEnd }) => {
                                 key={order.order_id}
                                 className={`h-10 ${idx > 0 ? 'border-t' : ''}`}
                             >
-                                <td>{order.instrument_id}</td>
+                                <td>{order.symbol}</td>
                                 <td>{order.quantity}</td>
                                 <td>
-                                    {order.side === Side.BID ? 'Buy' : 'Sell'}
+                                    {order.side === Side.bid ? 'Buy' : 'Sell'}
                                 </td>
                                 <td>
                                     {order.order_type.charAt(0).toUpperCase() +
@@ -65,7 +65,7 @@ const OrderHistory: FC<OrderTableProps> = ({ orders, onScrollEnd }) => {
                                 >
                                     {order.avg_fill_price ?? '--'}
                                 </td>
-                                
+
                                 <td>{formatUnderscore(order.status)}</td>
                             </tr>
                         ))}

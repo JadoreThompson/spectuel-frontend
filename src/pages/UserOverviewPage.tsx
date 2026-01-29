@@ -3,8 +3,7 @@ import OrderHistoryTable from '@/components/tables/OrderHistoryTable'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HTTP_BASE_URL } from '@/config'
-import type { Order } from '@/lib/types/apiTypes/order'
-import type { PaginatedResponse } from '@/lib/types/apiTypes/paginatedResponse'
+import { type OrderRead, type PaginatedResponseOrderRead } from '@/openapi'
 import { AreaSeries, createChart, type ISeriesApi } from 'lightweight-charts'
 import { ChevronUp } from 'lucide-react'
 import { useEffect, useRef, useState, type FC } from 'react'
@@ -115,7 +114,7 @@ const UserOverviewPage: FC = () => {
     )
 
     const [tableTab, setTableTab] = useState<Tab>('history')
-    const [orderHistory, setOrderHistory] = useState<Order[]>([])
+    const [orderHistory, setOrderHistory] = useState<OrderRead[]>([])
     const [showScrollToTop, setShowScollToTop] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState<boolean>(false)
 
@@ -142,7 +141,7 @@ const UserOverviewPage: FC = () => {
                 const data: UserOverview = await rsp.json()
                 setUserOverview(data)
             } else {
-                console.error("Error fetching user summary.", rsp)
+                console.error('Error fetching user summary.', rsp)
             }
         }
 
@@ -162,7 +161,7 @@ const UserOverviewPage: FC = () => {
             credentials: 'include',
         })
         if (rsp.ok) {
-            const data: PaginatedResponse<Order> = await rsp.json()
+            const data: PaginatedResponseOrderRead = await rsp.json()
             setOrderHistory((prev) => [...prev, ...data.data])
         }
 
