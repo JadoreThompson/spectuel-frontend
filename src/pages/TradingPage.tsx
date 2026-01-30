@@ -17,6 +17,12 @@ import {
     useGetWsTokenQuery,
 } from '@/hooks'
 import {
+    useMarketsWebSocket,
+    type BarUpdateEvent,
+    type OrderbookSnapshot,
+    type TradeEvent,
+} from '@/hooks/market-hooks'
+import {
     GetUserEventsUserEventsGetType,
     OrderStatus,
     type GetOrdersOrdersGetParams,
@@ -113,11 +119,18 @@ const TradingPage: FC = () => {
     const [ordersRefetchCounter, setOrdersRefetchCounter] = useState<number>(0)
     const [historyRefetchCounter, setHistoryRefetchCounter] =
         useState<number>(0)
-    const ordersPageRef = useRef(-1)
+    // const ordersPageRef = useRef(-1)
+    const ordersPageRef = useRef(0)
     // Initialised to -1 as the intersection observer will trigger
     const historyPageRef = useRef(0)
     const ordersHasNextRef = useRef(true)
     const historyHasNextRef = useRef(true)
+
+    // Markets WebSocket state
+    const [currentPrice, setCurrentPrice] = useState<number | null>(null)
+    const [prevPrice, setPrevPrice] = useState<number | null>(null)
+    const [latestBarUpdate, setLatestBarUpdate] =
+        useState<BarUpdateEvent | null>(null)
 
     // React Query hooks
     const userOverviewQuery = useGetUserOverviewQuery()
@@ -130,6 +143,7 @@ const TradingPage: FC = () => {
     })
 
     const openOrdersQuery = useGetOrdersQuery({
+        // page: ordersPageRef.current === -1 ? 1 : ordersPageRef.current + 1,
         page: ordersPageRef.current + 1,
         status: [
             OrderStatus.pending,
@@ -245,7 +259,6 @@ const TradingPage: FC = () => {
                     prev?.findIndex(
                         (order) => order.order_id === incomingOrder.order_id
                     ) ?? -1
-                console.log('Existing index', existingIndex)
                 if (existingIndex >= 0) {
                     return prev.map((order, index) =>
                         index === existingIndex
@@ -271,6 +284,54 @@ const TradingPage: FC = () => {
     const handleOrderPlaced = useCallback((order: OrderRead) => {
         setOpenOrders((prev) => [order, ...prev])
     }, [])
+
+    // Markets WebSocket handlers
+    const handleBarUpdate = useCallback((bar: BarUpdateEvent) => {
+        // Store the latest bar update to pass to ChartPanel
+        console.log('Received bar:', bar)
+        setLatestBarUpdate(bar)
+    }, [])
+
+    const handleTradeUpdate = useCallback((trade: TradeEvent) => {
+        // Update current price from trade
+        console.log('Received trade:', trade)
+        setCurrentPrice((prevPrice) => {
+            console.log('Updating price from', prevPrice, 'to', trade.price)
+            setPrevPrice(prevPrice)
+            return trade.price
+        })
+        // Future: Can be used for recent trades component
+    }, [])
+
+    const handleOrderbookUpdate = useCallback(
+        (orderbook: OrderbookSnapshot) => {
+            // Future: Can be used for orderbook component
+            console.log('Orderbook update:', orderbook)
+        },
+        []
+    )
+
+    // Markets WebSocket connection
+    console.log('Initializing markets WebSocket with symbol:', symbol)
+    const marketsWebSocket = useMarketsWebSocket({
+        subscription: {
+            bars: [
+                {
+                    symbol: symbol!,
+                    timeframes: ['1m', '5m'], // Default timeframe
+                },
+            ],
+            trades: [symbol!],
+            // orderbooks: [symbol!], // Uncomment when needed
+        },
+        onBarUpdate: handleBarUpdate,
+        onTrade: handleTradeUpdate,
+        onOrderbookSnapshot: handleOrderbookUpdate,
+    })
+    console.log(
+        'Markets WebSocket connection status:',
+        marketsWebSocket.isConnected
+    )
 
     // Tab change handler
     const handleTabChange = useCallback((tab: SpotTab) => {
@@ -366,13 +427,10 @@ const TradingPage: FC = () => {
                 return
             }
 
-            console.log('WS Raw message:', msg)
             if (msg.type === 'error') {
                 toast.error('WebSocket error: ' + msg.message)
                 return
             }
-
-            console.log('Received WS message:', msg)
 
             // Handle order events
             if (msg.type && msg.type.startsWith('order_')) {
@@ -460,6 +518,9 @@ const TradingPage: FC = () => {
                         <div className="w-full h-[500px] bg-background rounded-sm">
                             <ChartPanel
                                 symbol={symbol!}
+                                price={currentPrice}
+                                prevPrice={prevPrice}
+                                barUpdate={latestBarUpdate}
                                 onInstrumentSelect={(newSymbol) => {
                                     navigate(`/spot/${newSymbol}`)
                                 }}
