@@ -149,7 +149,14 @@ const TradingPage: FC = () => {
 
     // Scroll to top on page load
     useEffect(() => {
+        // Disable browser scroll restoration
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual'
+        }
+        // Force scroll to top
         window.scrollTo(0, 0)
+        document.documentElement.scrollTop = 0
+        document.body.scrollTop = 0
     }, [])
 
     // Update balance when user overview data changes
