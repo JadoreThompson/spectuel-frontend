@@ -1,4 +1,10 @@
 import {
+    useGetMarketBarsQuery,
+    useMarketsWebSocket,
+    type BarUpdateEvent,
+} from '@/hooks/market-hooks'
+import { TimeFrame as TimeFrameEnum } from '@/openapi'
+import {
     CandlestickSeries,
     ColorType,
     createChart,
@@ -8,58 +14,97 @@ import {
     type Time,
 } from 'lightweight-charts'
 import { ChevronDown } from 'lucide-react'
-import { useEffect, useRef, useState, type FC, type RefObject } from 'react'
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+    type RefObject,
+} from 'react'
 import InstrumentSelector from './InstrumentSelector'
 import Logo from './Logo'
 import { Button } from './ui/button'
 
-enum TimeFrame {
-    M5 = '5m',
-    M15 = '15m',
-    H1 = '1h',
-    H4 = '4h',
-    D1 = '1d',
-}
+const TimeFrame = {
+    '1m': '1m',
+    '5m': '5m',
+    '15m': '15m',
+    '1h': '1h',
+    '4h': '4h',
+    '1d': '1d',
+} as const
+
+type TimeFrame = (typeof TimeFrame)[keyof typeof TimeFrame]
 
 const ChartPanel: FC<{
-    instrument: string
+    symbol: string
     price?: number | null
     prevPrice?: number | null
     h24_change?: number | null
     h24_high?: number | null
     h24_low?: number | null
     h24_volume?: number | null
-    candles: CandlestickData<Time>[]
-    seriesRef: React.RefObject<ISeriesApi<'Candlestick'> | null>
     defaultTimeFrame?: TimeFrame
-    onTimeFrameChange: (value: TimeFrame) => void
-    onInstrumentSelect: (instrumentId: string) => void
+    onInstrumentSelect: (symbol: string) => void
 }> = ({
-    instrument,
+    symbol,
     price,
     prevPrice,
     h24_change,
     h24_high,
     h24_low,
     h24_volume,
-    candles,
-    seriesRef,
-    defaultTimeFrame = TimeFrame.M5,
-    onTimeFrameChange = () => {},
+    defaultTimeFrame = '5m',
     onInstrumentSelect,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null)
-    const chartRef = useRef<IChartApi>(null)
-    const [timeFrame, _setCurrentTimeFrame] =
-        useState<TimeFrame>(defaultTimeFrame)
+    const chartRef = useRef<IChartApi | null>(null)
+    const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+    const [timeFrame, setTimeFrame] = useState<TimeFrame>(defaultTimeFrame)
     const [isLoading, setIsLoading] = useState<boolean>(true)
     const [isSelectorOpen, setIsSelectorOpen] = useState(false)
     const triggerRef = useRef<HTMLDivElement>(null)
 
+    // Fetch historical bars
+    const barsQuery = useGetMarketBarsQuery(symbol, {
+        timeframe: timeFrame as TimeFrameEnum,
+    })
+
+    // Handle bar updates from WebSocket
+    const handleBarUpdate = useCallback(
+        (bar: BarUpdateEvent) => {
+            if (bar.symbol !== symbol || bar.timeframe !== timeFrame) return
+
+            if (seriesRef.current) {
+                seriesRef.current.update({
+                    time: bar.timestamp as Time,
+                    open: bar.open,
+                    high: bar.high,
+                    low: bar.low,
+                    close: bar.close,
+                })
+            }
+        },
+        [symbol, timeFrame]
+    )
+
+    // Subscribe to WebSocket updates
+    useMarketsWebSocket({
+        subscription: {
+            bars: [
+                {
+                    symbol,
+                    timeframes: [timeFrame],
+                },
+            ],
+        },
+        onBarUpdate: handleBarUpdate,
+    })
+
+    // Initialize chart
     useEffect(() => {
         if (!containerRef.current) return
-
-        setIsLoading(true)
 
         if (!chartRef.current) {
             chartRef.current = createChart(containerRef.current, {
@@ -85,15 +130,36 @@ const ChartPanel: FC<{
             seriesRef.current = chartRef.current.addSeries(CandlestickSeries)
         }
 
-        seriesRef.current.setData(candles)
+        return () => {
+            if (chartRef.current) {
+                chartRef.current.remove()
+                chartRef.current = null
+                seriesRef.current = null
+            }
+        }
+    }, [])
 
-        setIsLoading(false)
-    }, [containerRef, candles])
+    // Update chart data when bars are fetched
+    useEffect(() => {
+        if (barsQuery.data?.status === 200 && seriesRef.current) {
+            const bars = barsQuery.data.data.bars
+            const candleData: CandlestickData<Time>[] = bars.map((bar) => ({
+                time: bar.timestamp as Time,
+                open: bar.open,
+                high: bar.high,
+                low: bar.low,
+                close: bar.close,
+            }))
 
-    const setTimeFrame = (val: TimeFrame): void => {
-        onTimeFrameChange(val)
-        _setCurrentTimeFrame(val)
-    }
+            seriesRef.current.setData(candleData)
+            setIsLoading(false)
+        }
+    }, [barsQuery.data])
+
+    // Refetch when symbol or timeframe changes
+    useEffect(() => {
+        setIsLoading(true)
+    }, [symbol, timeFrame])
 
     return (
         <div className="w-full h-full flex flex-col p-5 gap-1">
@@ -105,7 +171,7 @@ const ChartPanel: FC<{
                 >
                     <div className="flex flex-col pr-2">
                         <span className="font-bold text-sm whitespace-nowrap">
-                            {instrument}
+                            {symbol}
                         </span>
                         <span
                             className={`

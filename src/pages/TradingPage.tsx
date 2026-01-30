@@ -1,3 +1,4 @@
+import ChartPanel from '@/components/ChartPanel'
 import { CustomToaster } from '@/components/CustomToaster'
 import EventLog, { type Log } from '@/components/EventLog'
 import SpotOrderForm from '@/components/forms/SpotOrderForm'
@@ -18,11 +19,12 @@ import {
 import {
     GetUserEventsUserEventsGetType,
     OrderStatus,
+    type GetOrdersOrdersGetParams,
     type OrderEventRead,
     type OrderRead,
 } from '@/openapi'
 import { useCallback, useEffect, useRef, useState, type FC } from 'react'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 
 // Custom types
@@ -40,7 +42,6 @@ enum EventType {
     ORDER_MODIFY_REJECTED = 'order_modify_rejected',
     ORDER_REJECTED = 'order_rejected',
 }
-
 
 // Constants
 const SPOT_TABS = ['orders', 'history'] as const
@@ -98,6 +99,7 @@ const SpotTableCard: FC<{
 // Main Component
 const TradingPage: FC = () => {
     const { symbol } = useParams()
+    const navigate = useNavigate()
     const [tableTab, setTableTab] = useState<SpotTab>('orders')
 
     // State
@@ -108,8 +110,14 @@ const TradingPage: FC = () => {
         useState<ConnectionStatus>('disconnected')
     const [openOrders, setOpenOrders] = useState<OrderRead[]>([])
     const [orderHistory, setOrderHistory] = useState<OrderRead[]>([])
-    const hasNextRef = useRef<boolean>(true)
-    const pageNumRef = useRef<number>(0)
+    const [ordersRefetchCounter, setOrdersRefetchCounter] = useState<number>(0)
+    const [historyRefetchCounter, setHistoryRefetchCounter] =
+        useState<number>(0)
+    const ordersPageRef = useRef(-1)
+    // Initialised to -1 as the intersection observer will trigger
+    const historyPageRef = useRef(0)
+    const ordersHasNextRef = useRef(true)
+    const historyHasNextRef = useRef(true)
 
     // React Query hooks
     const userOverviewQuery = useGetUserOverviewQuery()
@@ -120,21 +128,29 @@ const TradingPage: FC = () => {
     const userEventsQuery = useGetUserEventsQuery({
         type: GetUserEventsUserEventsGetType.order,
     })
+
     const openOrdersQuery = useGetOrdersQuery({
-        page: pageNumRef.current + 1,
+        page: ordersPageRef.current + 1,
         status: [
             OrderStatus.pending,
             OrderStatus.placed,
             OrderStatus.partially_filled,
         ],
         symbols: [symbol!],
-        order_by: 'desc',
-    })
+        order: 'desc',
+        refetch: ordersRefetchCounter,
+    } as GetOrdersOrdersGetParams)
     const orderHistoryQuery = useGetOrdersQuery({
-        page: pageNumRef.current + 1,
+        page: historyPageRef.current + 1,
         symbols: [symbol!],
-        order_by: 'desc',
-    })
+        order: 'desc',
+        refetch: historyRefetchCounter,
+    } as GetOrdersOrdersGetParams)
+
+    // Scroll to top on page load
+    useEffect(() => {
+        window.scrollTo(0, 0)
+    }, [])
 
     // Update balance when user overview data changes
     useEffect(() => {
@@ -171,16 +187,22 @@ const TradingPage: FC = () => {
     // Update open orders when query data changes
     useEffect(() => {
         if (openOrdersQuery.data?.status === 200) {
+            console.log('Orders page num:', ordersPageRef.current)
             const data = openOrdersQuery.data.data
-            setOpenOrders((prev) => {
-                // Filter out duplicates by checking order_id
-                const existingIds = new Set(prev.map((order) => order.order_id))
-                const newOrders = data.data.filter(
-                    (order) => !existingIds.has(order.order_id)
-                )
-                return [...prev, ...newOrders]
-            })
-            hasNextRef.current = data.has_next
+            if (ordersPageRef.current === 0) {
+                setOpenOrders(data.data)
+            } else {
+                setOpenOrders((prev) => {
+                    const existingIds = new Set(
+                        prev.map((order) => order.order_id)
+                    )
+                    const newOrders = data.data.filter(
+                        (order) => !existingIds.has(order.order_id)
+                    )
+                    return [...prev, ...newOrders]
+                })
+            }
+            ordersHasNextRef.current = data.has_next
         }
     }, [openOrdersQuery.data])
 
@@ -188,15 +210,20 @@ const TradingPage: FC = () => {
     useEffect(() => {
         if (orderHistoryQuery.data?.status === 200) {
             const data = orderHistoryQuery.data.data
-            setOrderHistory((prev) => {
-                // Filter out duplicates by checking order_id
-                const existingIds = new Set(prev.map((order) => order.order_id))
-                const newOrders = data.data.filter(
-                    (order) => !existingIds.has(order.order_id)
-                )
-                return [...prev, ...newOrders]
-            })
-            hasNextRef.current = data.has_next
+            if (historyPageRef.current === 0) {
+                setOrderHistory(data.data)
+            } else {
+                setOrderHistory((prev) => {
+                    const existingIds = new Set(
+                        prev.map((order) => order.order_id)
+                    )
+                    const newOrders = data.data.filter(
+                        (order) => !existingIds.has(order.order_id)
+                    )
+                    return [...prev, ...newOrders]
+                })
+            }
+            historyHasNextRef.current = data.has_next
         }
     }, [orderHistoryQuery.data])
 
@@ -240,21 +267,31 @@ const TradingPage: FC = () => {
 
     // Tab change handler
     const handleTabChange = useCallback((tab: SpotTab) => {
-        pageNumRef.current = 1
-        hasNextRef.current = true
+        // Reset the page of the tab we're switching TO
+        if (tab === 'orders') {
+            ordersPageRef.current = 0
+            ordersHasNextRef.current = true
+            setOrdersRefetchCounter((prev) => prev + 1)
+        } else if (tab === 'history') {
+            historyPageRef.current = 0
+            historyHasNextRef.current = true
+            setHistoryRefetchCounter((prev) => prev + 1)
+        }
         setTableTab(tab)
     }, [])
 
     // Scroll end handlers
     const handleOpenOrdersScrollEnd = useCallback(() => {
-        if (hasNextRef.current) {
-            pageNumRef.current += 1
+        if (ordersHasNextRef.current) {
+            ordersPageRef.current += 1
+            setOrdersRefetchCounter((prev) => prev + 1)
         }
     }, [])
 
     const handleHistoryScrollEnd = useCallback(() => {
-        if (hasNextRef.current) {
-            pageNumRef.current += 1
+        if (historyHasNextRef.current) {
+            historyPageRef.current += 1
+            setHistoryRefetchCounter((prev) => prev + 1)
         }
     }, [])
 
@@ -412,6 +449,16 @@ const TradingPage: FC = () => {
                 <main className="w-full min-h-screen mt-10 flex flex-row gap-1 p-1">
                     {/* Main Trading Area */}
                     <div className="w-[70%] flex flex-col gap-1">
+                        {/* Chart Section */}
+                        <div className="w-full h-[500px] bg-background rounded-sm">
+                            <ChartPanel
+                                symbol={symbol!}
+                                onInstrumentSelect={(newSymbol) => {
+                                    navigate(`/spot/${newSymbol}`)
+                                }}
+                            />
+                        </div>
+
                         {/* Tables Section */}
                         <div className="w-full flex flex-row gap-1">
                             <SpotTableCard

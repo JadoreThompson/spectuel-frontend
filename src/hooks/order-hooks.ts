@@ -33,7 +33,7 @@ export const useCreateOrderMutation = () => {
 export const useGetOrdersQuery = (params?: GetOrdersOrdersGetParams) => {
     return useQuery({
         queryKey: ['orders', params],
-        queryFn: () => getOrdersOrdersGet(params),
+        queryFn: async () => getOrdersOrdersGet(params),
     })
 }
 
