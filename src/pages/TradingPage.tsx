@@ -3,6 +3,8 @@ import { CustomToaster } from '@/components/CustomToaster'
 import EventLog, { type Log } from '@/components/EventLog'
 import SpotOrderForm from '@/components/forms/SpotOrderForm'
 import Header from '@/components/Header'
+import OrderBook from '@/components/OrderBook'
+import RecentTrades from '@/components/RecentTrades'
 import StatusBar from '@/components/StatusBar'
 import OpenOrdersTable from '@/components/tables/OpenOrdersTable'
 import OrderHistoryTable from '@/components/tables/OrderHistoryTable'
@@ -25,6 +27,7 @@ import {
 import {
     GetUserEventsUserEventsGetType,
     OrderStatus,
+    Side,
     type GetOrdersOrdersGetParams,
     type OrderEventRead,
     type OrderRead,
@@ -131,6 +134,20 @@ const TradingPage: FC = () => {
     const [prevPrice, setPrevPrice] = useState<number | null>(null)
     const [latestBarUpdate, setLatestBarUpdate] =
         useState<BarUpdateEvent | null>(null)
+    const [orderbookBids, setOrderbookBids] = useState<
+        { price: number; quantity: number }[]
+    >([])
+    const [orderbookAsks, setOrderbookAsks] = useState<
+        { price: number; quantity: number }[]
+    >([])
+    const [recentTrades, setRecentTrades] = useState<
+        {
+            price: number
+            quantity: number
+            side: Side
+            executed_at: string
+        }[]
+    >([])
 
     // React Query hooks
     const userOverviewQuery = useGetUserOverviewQuery()
@@ -300,13 +317,38 @@ const TradingPage: FC = () => {
             setPrevPrice(prevPrice)
             return trade.price
         })
-        // Future: Can be used for recent trades component
+
+        // Add to recent trades list (keep last 20 trades)
+        // Map WebSocket side ('buy'/'sell') to OpenAPI Side ('bid'/'ask')
+        setRecentTrades((prev) => {
+            const newTrade = {
+                price: trade.price,
+                quantity: trade.quantity,
+                side: trade.side === 'buy' ? Side.bid : Side.ask,
+                executed_at: new Date(trade.timestamp).toISOString(),
+            }
+            return [newTrade, ...prev].slice(0, 20)
+        })
     }, [])
 
     const handleOrderbookUpdate = useCallback(
         (orderbook: OrderbookSnapshot) => {
-            // Future: Can be used for orderbook component
             console.log('Orderbook update:', orderbook)
+
+            // Parse bids: [price, quantity] tuples to {price, quantity} objects
+            const parsedBids = orderbook.bids.map(([price, quantity]) => ({
+                price,
+                quantity,
+            }))
+
+            // Parse asks: [price, quantity] tuples to {price, quantity} objects
+            const parsedAsks = orderbook.asks.map(([price, quantity]) => ({
+                price,
+                quantity,
+            }))
+
+            setOrderbookBids(parsedBids)
+            setOrderbookAsks(parsedAsks)
         },
         []
     )
@@ -322,7 +364,7 @@ const TradingPage: FC = () => {
                 },
             ],
             trades: [symbol!],
-            // orderbooks: [symbol!], // Uncomment when needed
+            orderbooks: [symbol!],
         },
         onBarUpdate: handleBarUpdate,
         onTrade: handleTradeUpdate,
@@ -513,18 +555,34 @@ const TradingPage: FC = () => {
 
                 <main className="w-full min-h-screen mt-10 flex flex-row gap-1 p-1">
                     {/* Main Trading Area */}
-                    <div className="w-[70%] flex flex-col gap-1">
+                    <div className="w-[80%] flex flex-col gap-2">
+                        {/* <div className="w-[70%] flex flex-row gap-2"> */}
                         {/* Chart Section */}
-                        <div className="w-full h-[500px] bg-background rounded-sm">
-                            <ChartPanel
-                                symbol={symbol!}
-                                price={currentPrice}
-                                prevPrice={prevPrice}
-                                barUpdate={latestBarUpdate}
-                                onInstrumentSelect={(newSymbol) => {
-                                    navigate(`/spot/${newSymbol}`)
-                                }}
-                            />
+                        <div className="flex">
+                            <div className="w-4/5 h-[500px] bg-background rounded-sm">
+                                <ChartPanel
+                                    symbol={symbol!}
+                                    price={currentPrice}
+                                    prevPrice={prevPrice}
+                                    barUpdate={latestBarUpdate}
+                                    onInstrumentSelect={(newSymbol) => {
+                                        navigate(`/spot/${newSymbol}`)
+                                    }}
+                                />
+                            </div>
+
+                            {/* OrderBook and Recent Trades Section */}
+                            <div className="w-1/5 flex flex-col gap-1">
+                                <div className=" h-1/2 w-full bg-background rounded-sm">
+                                    <OrderBook
+                                        bids={orderbookBids}
+                                        asks={orderbookAsks}
+                                    />
+                                </div>
+                                <div className="h-1/2 w-full bg-background rounded-sm">
+                                    <RecentTrades trades={recentTrades} />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Tables Section */}

@@ -100,7 +100,10 @@ export const useMarketsWebSocket = (options: UseMarketsWebSocketOptions) => {
     }, [options.subscription])
 
     useEffect(() => {
-        console.log('Initializing markets WebSocket connection to:', `${WS_BASE_URL}/ws/markets`)
+        console.log(
+            'Initializing markets WebSocket connection to:',
+            `${WS_BASE_URL}/ws/markets`
+        )
         const ws = new WebSocket(`${WS_BASE_URL}/ws/markets`)
         wsRef.current = ws
 
