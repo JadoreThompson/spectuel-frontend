@@ -11,7 +11,6 @@ interface TradeEvent {
 const RecentTrades: FC<{ trades: TradeEvent[] }> = ({ trades }) => {
     const formatDate = (value: string) => {
         const date = new Date(value)
-        console.log(date)
         return `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
     }
 

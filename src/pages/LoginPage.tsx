@@ -12,7 +12,6 @@ const LoginPage: FC = () => {
 
     const setIsLoggedIn = useAuthStore((state) => state.setIsLoggedIn)
 
-    // React Query hooks
     const meQuery = useGetMeQuery()
     const loginMutation = useLoginMutation()
 

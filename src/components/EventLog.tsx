@@ -2,7 +2,6 @@ import { formatUnderscore } from '@/lib/utils'
 import type { InstrumentEventType, OrderEventType } from '@/types/events/enums'
 import type { FC } from 'react'
 
-type EventType = OrderEventType | InstrumentEventType.NEW_TRADE
 // type EventType {
 //     ORDER_PLACED = 'order_placed',
 //     ORDER_PARTIALLY_FILLED = 'order_partially_filled',
@@ -16,8 +15,10 @@ type EventType = OrderEventType | InstrumentEventType.NEW_TRADE
 
 // export type Log = { event_type: EventType; message: string }
 
+export type EventType = OrderEventType | InstrumentEventType.NEW_TRADE;
+
 export type Log = {
-    event_type: OrderEventType | InstrumentEventType.NEW_TRADE
+    event_type: EventType
     message: string
 }
 

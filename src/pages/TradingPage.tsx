@@ -1,6 +1,6 @@
 import ChartPanel from '@/components/ChartPanel'
 import { CustomToaster } from '@/components/CustomToaster'
-import EventLog, { type Log } from '@/components/EventLog'
+import EventLog, { type EventType, type Log } from '@/components/EventLog'
 import SpotOrderForm from '@/components/forms/SpotOrderForm'
 import Header from '@/components/Header'
 import OrderBook from '@/components/OrderBook'
@@ -44,15 +44,15 @@ interface UserOverviewResponse {
     data: { [k: string]: number }
 }
 
-enum EventType {
-    ORDER_PLACED = 'order_placed',
-    ORDER_PARTIALLY_FILLED = 'order_partially_filled',
-    ORDER_FILLED = 'order_filled',
-    ORDER_CANCELLED = 'order_cancelled',
-    ORDER_MODIFIED = 'order_modified',
-    ORDER_MODIFY_REJECTED = 'order_modify_rejected',
-    ORDER_REJECTED = 'order_rejected',
-}
+// enum EventType {
+//     ORDER_PLACED = 'order_placed',
+//     ORDER_PARTIALLY_FILLED = 'order_partially_filled',
+//     ORDER_FILLED = 'order_filled',
+//     ORDER_CANCELLED = 'order_cancelled',
+//     ORDER_MODIFIED = 'order_modified',
+//     ORDER_MODIFY_REJECTED = 'order_modify_rejected',
+//     ORDER_REJECTED = 'order_rejected',
+// }
 
 // Constants
 const SPOT_TABS = ['orders', 'history'] as const
@@ -194,9 +194,7 @@ const TradingPage: FC = () => {
     }, [])
 
     // Update balance when user overview data changes
-    // Update balance when user overview data changes
     useEffect(() => {
-        console.log('User overiew response', userOverviewQuery.data)
         if (userOverviewQuery.data?.status === 200) {
             const data = userOverviewQuery.data.data as UserOverviewResponse
             setBalance(data.cash_balance - data.cash_escrow_balance)
@@ -230,7 +228,6 @@ const TradingPage: FC = () => {
     // Update open orders when query data changes
     useEffect(() => {
         if (openOrdersQuery.data?.status === 200) {
-            console.log('Orders page num:', ordersPageRef.current)
             const data = openOrdersQuery.data.data
             if (ordersPageRef.current === 0) {
                 setOpenOrders(data.data)
@@ -309,16 +306,12 @@ const TradingPage: FC = () => {
 
     // Markets WebSocket handlers
     const handleBarUpdate = useCallback((bar: BarUpdateEvent) => {
-        // Store the latest bar update to pass to ChartPanel
-        console.log('Received bar:', bar)
         setLatestBarUpdate(bar)
     }, [])
 
     const handleTradeUpdate = useCallback((trade: TradeEvent) => {
         // Update current price from trade
-        console.log('Received trade:', trade)
         setCurrentPrice((prevPrice) => {
-            console.log('Updating price from', prevPrice, 'to', trade.price)
             setPrevPrice(prevPrice)
             return trade.price
         })
@@ -338,8 +331,6 @@ const TradingPage: FC = () => {
 
     const handleOrderbookUpdate = useCallback(
         (orderbook: OrderbookSnapshot) => {
-            console.log('Orderbook update:', orderbook)
-
             // Parse bids: [price, quantity] tuples to {price, quantity} objects
             const parsedBids = orderbook.bids.map(([price, quantity]) => ({
                 price,
@@ -359,7 +350,6 @@ const TradingPage: FC = () => {
     )
 
     // Markets WebSocket connection
-    console.log('Initializing markets WebSocket with symbol:', symbol)
     const marketsWebSocket = useMarketsWebSocket({
         subscription: {
             bars: [
@@ -375,10 +365,6 @@ const TradingPage: FC = () => {
         onTrade: handleTradeUpdate,
         onOrderbookSnapshot: handleOrderbookUpdate,
     })
-    console.log(
-        'Markets WebSocket connection status:',
-        marketsWebSocket.isConnected
-    )
 
     // Tab change handler
     const handleTabChange = useCallback((tab: SpotTab) => {

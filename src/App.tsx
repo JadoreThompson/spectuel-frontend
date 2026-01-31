@@ -15,30 +15,13 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
                 <Routes>
-                    <Route
-                        path="/register"
-                        element={<AuthGuard children={<RegisterPage />} />}
-                    />
-                    <Route
-                        path="/login"
-                        // element={<AuthGuard children={<LoginPage />} />}
-                        element={<LoginPage />}
-                    />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/login" element={<LoginPage />} />
                     <Route
                         path="/user"
                         element={<AuthGuard children={<UserOverviewPage />} />}
                     />
-                    <Route
-                        path="/spot/:symbol"
-                        // element={<AuthGuard children={<TradingPage />} />}
-                        element={<TradingPage />}
-                    />
-                    {/* <Route
-                        path="/instrument"
-                        element={
-                            <AuthGuard children={<InstrumentCreatePage />} />
-                        }
-                    /> */}
+                    <Route path="/spot/:symbol" element={<TradingPage />} />
                     <Route path="/demo" element={<CloneTradingPage />} />
                 </Routes>
             </BrowserRouter>
