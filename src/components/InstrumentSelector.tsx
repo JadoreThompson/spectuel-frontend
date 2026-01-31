@@ -1,16 +1,9 @@
-import { HTTP_BASE_URL } from '@/config'
-import { cn } from '@/lib/utils'
+import { useGetMarketSymbolsQuery } from '@/hooks/market-hooks'
 import { Search } from 'lucide-react'
 import { type FC, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { Input } from './ui/input'
-
-interface InstrumentListItem {
-    instrument_id: string
-    price?: number
-    h24_change?: number
-}
 
 interface InstrumentSelectorProps {
     isOpen: boolean
@@ -25,39 +18,15 @@ const InstrumentSelector: FC<InstrumentSelectorProps> = ({
     onSelect,
     triggerRef,
 }) => {
-    const navigate = useNavigate()
-    const [instruments, setInstruments] = useState<InstrumentListItem[]>([])
     const [searchTerm, setSearchTerm] = useState('')
-    const [isLoading, setIsLoading] = useState(true)
     const popoverRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        const fetchInstruments = async () => {
-            setIsLoading(true)
-            try {
-                const rsp = await fetch(`${HTTP_BASE_URL}/instruments`)
-
-                if (rsp.ok) {
-                    const data: InstrumentListItem[] = await rsp.json()
-                    setInstruments(data)
-                } else {
-                    console.error('Failed to fetch instruments')
-                }
-            } catch (error) {
-                console.error('Error fetching instruments:', error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-
-        if (isOpen) {
-            fetchInstruments()
-        }
-    }, [isOpen])
+    // Use the market symbols query hook
+    const symbolsQuery = useGetMarketSymbolsQuery()
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target
+            const target = event.target as Node
             if (!popoverRef.current?.contains(target)) {
                 onClose()
             }
@@ -70,12 +39,14 @@ const InstrumentSelector: FC<InstrumentSelectorProps> = ({
         }
     }, [isOpen, onClose, triggerRef])
 
-    const filteredInstruments = instruments.filter((inst) =>
-        inst.instrument_id.toLowerCase().includes(searchTerm.toLowerCase())
+    const symbols = symbolsQuery.data?.status === 200 ? symbolsQuery.data.data : []
+
+    const filteredSymbols = symbols.filter((symbol) =>
+        symbol.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
-    const handleSelect = (instrumentId: string) => {
-        onSelect(instrumentId)
+    const handleSelect = (symbol: string) => {
+        onSelect(symbol)
         onClose()
     }
 
@@ -110,47 +81,36 @@ const InstrumentSelector: FC<InstrumentSelectorProps> = ({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
                     type="text"
-                    placeholder="Search instrument"
+                    placeholder="Search symbol"
                     className="pl-9"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
 
-            <div className="grid grid-cols-3 gap-4 px-3 py-2 text-xs text-muted-foreground font-medium border-b border-neutral-800">
-                <span>Pair</span>
-                <span className="text-right">Last Price</span>
-                <span className="text-right">24h Change</span>
+            <div className="grid grid-cols-1 gap-4 px-3 py-2 text-xs text-muted-foreground font-medium border-b border-neutral-800">
+                <span>Symbol</span>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-                {isLoading ? (
+                {symbolsQuery.isLoading ? (
                     <div className="flex justify-center items-center h-full text-muted-foreground">
                         Loading...
                     </div>
-                ) : (
-                    filteredInstruments.map((inst) => (
+                ) : filteredSymbols.length > 0 ? (
+                    filteredSymbols.map((symbol) => (
                         <div
-                            key={inst.instrument_id}
-                            onClick={() => handleSelect(inst.instrument_id)}
-                            className="grid grid-cols-3 gap-4 px-3 py-3 text-sm hover:bg-neutral-800 cursor-pointer rounded-md"
+                            key={symbol}
+                            onClick={() => handleSelect(symbol)}
+                            className="grid grid-cols-1 gap-4 px-3 py-3 text-sm hover:bg-neutral-800 cursor-pointer rounded-md"
                         >
-                            <span>{inst.instrument_id}</span>
-                            <span className="text-right">
-                                {inst.price?.toFixed(2) ?? '-'}
-                            </span>
-                            <span
-                                className={cn('text-right', {
-                                    'text-[var(--green)]':
-                                        (inst.h24_change ?? 0) >= 0,
-                                    'text-[var(--red)]':
-                                        (inst.h24_change ?? 0) < 0,
-                                })}
-                            >
-                                {inst.h24_change?.toFixed(2) ?? '-'}%
-                            </span>
+                            <span className="font-semibold">{symbol}</span>
                         </div>
                     ))
+                ) : (
+                    <div className="flex justify-center items-center h-full text-muted-foreground">
+                        No symbols found
+                    </div>
                 )}
             </div>
         </div>,

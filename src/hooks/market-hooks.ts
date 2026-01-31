@@ -1,6 +1,7 @@
 import { WS_BASE_URL } from '@/config'
 import {
     getMarketBarsMarketsSymbolBarsGet,
+    getMarketSymbolsMarketsSymbolsGet,
     type GetMarketBarsMarketsSymbolBarsGetParams,
 } from '@/openapi'
 import { useQuery } from '@tanstack/react-query'
@@ -19,6 +20,14 @@ export const useGetMarketBarsQuery = (
         queryKey: ['marketBars', symbol, params],
         queryFn: () => getMarketBarsMarketsSymbolBarsGet(symbol, params),
         enabled: !!symbol,
+    })
+}
+
+// Get Market Symbols Query
+export const useGetMarketSymbolsQuery = () => {
+    return useQuery({
+        queryKey: ['marketSymbols'],
+        queryFn: () => getMarketSymbolsMarketsSymbolsGet(),
     })
 }
 

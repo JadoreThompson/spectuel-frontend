@@ -1519,3 +1519,35 @@ export const getMarketBarsMarketsSymbolBarsGet = async (
         }
     )
 }
+
+/**
+ * Retrieves all available symbols from the Instruments table.
+ * @summary Get Market Symbols
+ */
+export type getMarketSymbolsMarketsSymbolsGetResponse200 = {
+    data: string[]
+    status: 200
+}
+
+export type getMarketSymbolsMarketsSymbolsGetResponseSuccess =
+    getMarketSymbolsMarketsSymbolsGetResponse200 & {
+        headers: Headers
+    }
+export type getMarketSymbolsMarketsSymbolsGetResponse =
+    getMarketSymbolsMarketsSymbolsGetResponseSuccess
+
+export const getGetMarketSymbolsMarketsSymbolsGetUrl = () => {
+    return `/markets/symbols`
+}
+
+export const getMarketSymbolsMarketsSymbolsGet = async (
+    options?: RequestInit
+): Promise<getMarketSymbolsMarketsSymbolsGetResponse> => {
+    return customFetch<getMarketSymbolsMarketsSymbolsGetResponse>(
+        getGetMarketSymbolsMarketsSymbolsGetUrl(),
+        {
+            ...options,
+            method: 'GET',
+        }
+    )
+}
