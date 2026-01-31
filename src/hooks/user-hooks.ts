@@ -1,3 +1,4 @@
+import { queryKeys } from '@/lib/query/query-keys'
 import {
     getAssetBalancesUserAssetBalancesGet,
     getUserEventsUserEventsGet,
@@ -14,7 +15,7 @@ import { useQuery } from '@tanstack/react-query'
 // Get User Overview Query
 export const useGetUserOverviewQuery = () => {
     return useQuery({
-        queryKey: ['userOverview'],
+        queryKey: queryKeys.user.overview(),
         queryFn: async () => getUserOverviewUserGet(),
     })
 }
@@ -24,7 +25,7 @@ export const useGetUserEventsQuery = (
     params: GetUserEventsUserEventsGetParams
 ) => {
     return useQuery({
-        queryKey: ['userEvents', params],
+        queryKey: queryKeys.user.events(params),
         queryFn: async () => getUserEventsUserEventsGet(params),
     })
 }
@@ -34,7 +35,7 @@ export const useGetAssetBalancesQuery = (
     params?: GetAssetBalancesUserAssetBalancesGetParams
 ) => {
     return useQuery({
-        queryKey: ['assetBalances', params],
+        queryKey: queryKeys.user.assetBalances(params),
         queryFn: async () => getAssetBalancesUserAssetBalancesGet(params),
     })
 }

@@ -1,3 +1,4 @@
+import { queryKeys } from '@/lib/query/query-keys'
 import {
     changeEmailAuthChangeEmailPost,
     changePasswordAuthChangePasswordPost,
@@ -65,7 +66,7 @@ export const useLogoutMutation = () => {
 // Get Me Query
 export const useGetMeQuery = () => {
     return useQuery({
-        queryKey: ['me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: () => getMeAuthMeGet(),
     })
 }
@@ -73,7 +74,7 @@ export const useGetMeQuery = () => {
 // Get WebSocket Token Query
 export const useGetWsTokenQuery = () => {
     return useQuery({
-        queryKey: ['wsToken'],
+        queryKey: queryKeys.auth.wsToken(),
         queryFn: async () => getWsTokenAuthWsTokenGet(),
         staleTime: 0, // Always fetch fresh token
         gcTime: 0, // Don't cache

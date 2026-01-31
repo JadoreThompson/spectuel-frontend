@@ -1,3 +1,4 @@
+import { queryKeys } from '@/lib/query/query-keys'
 import {
     cancelOrderOrdersOrderIdDelete,
     createOcoOrderOrdersOcoPost,
@@ -32,7 +33,7 @@ export const useCreateOrderMutation = () => {
 // Get Orders Query
 export const useGetOrdersQuery = (params?: GetOrdersOrdersGetParams) => {
     return useQuery({
-        queryKey: ['orders', params],
+        queryKey: queryKeys.orders.list(params),
         queryFn: async () => getOrdersOrdersGet(params),
     })
 }
@@ -64,7 +65,7 @@ export const useCreateOtocoOrderMutation = () => {
 // Get Order by ID Query
 export const useGetOrderQuery = (orderId: string) => {
     return useQuery({
-        queryKey: ['order', orderId],
+        queryKey: queryKeys.orders.detail(orderId),
         queryFn: () => getOrderOrdersOrderIdGet(orderId),
         enabled: !!orderId,
     })
@@ -94,7 +95,7 @@ export const useCancelOrderMutation = () => {
 // Get Orders by Group Query
 export const useGetOrdersByGroupQuery = (groupId: string) => {
     return useQuery({
-        queryKey: ['orderGroup', groupId],
+        queryKey: queryKeys.orders.group(groupId),
         queryFn: () => getOrdersByGroupOrdersGroupsGroupIdGet(groupId),
         enabled: !!groupId,
     })

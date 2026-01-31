@@ -1,4 +1,5 @@
 import { WS_BASE_URL } from '@/config'
+import { queryKeys } from '@/lib/query/query-keys'
 import {
     getMarketBarsMarketsSymbolBarsGet,
     getMarketStatsMarketsSymbolStatsGet,
@@ -18,7 +19,7 @@ export const useGetMarketBarsQuery = (
     params: GetMarketBarsMarketsSymbolBarsGetParams
 ) => {
     return useQuery({
-        queryKey: ['marketBars', symbol, params],
+        queryKey: queryKeys.market.bars(symbol, params),
         queryFn: () => getMarketBarsMarketsSymbolBarsGet(symbol, params),
         enabled: !!symbol,
     })
@@ -27,7 +28,7 @@ export const useGetMarketBarsQuery = (
 // Get Market Symbols Query
 export const useGetMarketSymbolsQuery = () => {
     return useQuery({
-        queryKey: ['marketSymbols'],
+        queryKey: queryKeys.market.symbols(),
         queryFn: () => getMarketSymbolsMarketsSymbolsGet(),
     })
 }
@@ -35,7 +36,7 @@ export const useGetMarketSymbolsQuery = () => {
 // Get Market Stats Query
 export const useGetMarketStatsQuery = (symbol: string) => {
     return useQuery({
-        queryKey: ['marketStats', symbol],
+        queryKey: queryKeys.market.stats(symbol),
         queryFn: () => getMarketStatsMarketsSymbolStatsGet(symbol),
         enabled: !!symbol,
     })
