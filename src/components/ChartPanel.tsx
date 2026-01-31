@@ -3,7 +3,7 @@ import {
     useGetMarketStatsQuery,
     type BarUpdateEvent,
 } from '@/hooks/market-hooks'
-import { TimeFrame as TimeFrameEnum } from '@/openapi'
+import { TimeFrame } from '@/openapi'
 import {
     CandlestickSeries,
     ColorType,
@@ -19,16 +19,16 @@ import InstrumentSelector from './InstrumentSelector'
 import Logo from './Logo'
 import { Button } from './ui/button'
 
-const TimeFrame = {
-    '1m': '1m',
-    '5m': '5m',
-    '15m': '15m',
-    '1h': '1h',
-    '4h': '4h',
-    '1d': '1d',
-} as const
+// const TimeFrame = {
+//     '1m': '1m',
+//     '5m': '5m',
+//     '15m': '15m',
+//     '1h': '1h',
+//     '4h': '4h',
+//     '1d': '1d',
+// } as const
 
-type TimeFrame = (typeof TimeFrame)[keyof typeof TimeFrame]
+// type TimeFrame = (typeof TimeFrame)[keyof typeof TimeFrame]
 
 const ChartPanel: FC<{
     symbol: string
@@ -54,7 +54,7 @@ const ChartPanel: FC<{
 
     // Fetch historical bars
     const barsQuery = useGetMarketBarsQuery(props.symbol, {
-        timeframe: timeFrame as TimeFrameEnum,
+        timeframe: timeFrame,
     })
 
     // Fetch market stats

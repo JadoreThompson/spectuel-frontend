@@ -11,14 +11,7 @@ interface AuthLayoutProps {
     footerTo: string
 }
 
-const AuthLayout: FC<AuthLayoutProps> = ({
-    children,
-    title,
-    subtitle,
-    footerText,
-    footerLinkText,
-    footerTo,
-}) => {
+const AuthLayout: FC<AuthLayoutProps> = (props) => {
     return (
         <div className="w-full min-h-screen bg-zinc-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md mx-auto">
@@ -28,22 +21,22 @@ const AuthLayout: FC<AuthLayoutProps> = ({
                 <div className="bg-background border border-neutral-800 rounded-lg shadow-xl p-8">
                     <div className="text-center mb-6">
                         <h1 className="text-2xl font-bold text-white mb-1">
-                            {title}
+                            {props.title}
                         </h1>
                         <p className="text-muted-foreground text-sm">
-                            {subtitle}
+                            {props.subtitle}
                         </p>
                     </div>
 
-                    {children}
+                    {props.children}
 
                     <p className="mt-6 text-center text-sm text-muted-foreground">
-                        {footerText}{' '}
+                        {props.footerText}{' '}
                         <Link
-                            to={footerTo}
+                            to={props.footerTo}
                             className="font-medium text-primary hover:underline underline-offset-4"
                         >
-                            {footerLinkText}
+                            {props.footerLinkText}
                         </Link>
                     </p>
                 </div>

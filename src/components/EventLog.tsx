@@ -1,36 +1,41 @@
 import { formatUnderscore } from '@/lib/utils'
+import type { InstrumentEventType, OrderEventType } from '@/types/events/enums'
 import type { FC } from 'react'
 
-enum EventType {
-    ORDER_PLACED = 'order_placed',
-    ORDER_PARTIALLY_FILLED = 'order_partially_filled',
-    ORDER_FILLED = 'order_filled',
-    ORDER_CANCELLED = 'order_cancelled',
-    ORDER_MODIFIED = 'order_modified',
-    ORDER_MODIFY_REJECTED = 'order_modify_rejected',
-    ORDER_REJECTED = 'order_rejected',
-    NEW_TRADE = 'new_trade',
-}
+type EventType = OrderEventType | InstrumentEventType.NEW_TRADE
+// type EventType {
+//     ORDER_PLACED = 'order_placed',
+//     ORDER_PARTIALLY_FILLED = 'order_partially_filled',
+//     ORDER_FILLED = 'order_filled',
+//     ORDER_CANCELLED = 'order_cancelled',
+//     ORDER_MODIFIED = 'order_modified',
+//     ORDER_MODIFY_REJECTED = 'order_modify_rejected',
+//     ORDER_REJECTED = 'order_rejected',
+//     NEW_TRADE = 'new_trade',
+// }
 
-export type Log = { event_type: EventType; message: string }
+// export type Log = { event_type: EventType; message: string }
+
+export type Log = {
+    event_type: OrderEventType | InstrumentEventType.NEW_TRADE
+    message: string
+}
 
 const EventLog: FC<{
     data: Log[]
 }> = ({ data }) => {
     const getColor = (eventType: EventType) => {
         switch (eventType) {
-            case EventType.ORDER_CANCELLED:
+            case 'order_cancelled':
                 return 'red'
-            case EventType.ORDER_MODIFY_REJECTED:
+            case 'order_modify_rejected':
                 return 'red'
-            case EventType.ORDER_MODIFIED:
+            case 'order_modified':
                 return 'blue'
-            case EventType.ORDER_PARTIALLY_FILLED:
+            case 'order_partially_filled':
                 return 'green'
-            case EventType.ORDER_FILLED:
+            case 'order_filled':
                 return 'green'
-            case EventType.ORDER_REJECTED:
-                return 'red'
             default:
                 return 'gray'
         }
