@@ -173,6 +173,7 @@ const TradingPage: FC = () => {
         order: 'desc',
         refetch: ordersRefetchCounter,
     } as GetOrdersOrdersGetParams)
+
     const orderHistoryQuery = useGetOrdersQuery({
         page: historyPageRef.current + 1,
         symbols: [symbol!],

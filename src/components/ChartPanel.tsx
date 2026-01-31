@@ -135,6 +135,14 @@ const ChartPanel: FC<{
         setIsLoading(true)
     }, [props.symbol, timeFrame])
 
+    // Calculate display price - use last candle's close if price prop is null/undefined
+    const displayPrice =
+        props.price ??
+        (barsQuery.data?.status === 200 && barsQuery.data.data.bars.length > 0
+            ? barsQuery.data.data.bars[barsQuery.data.data.bars.length - 1]
+                  .close
+            : null)
+
     return (
         <div className="w-full h-full flex flex-col p-5 gap-1">
             <div className="w-full h-15 flex flex-row items-center justify-start">
@@ -151,17 +159,17 @@ const ChartPanel: FC<{
                             className={`
                             font-semibold
                             ${
-                                typeof props.price == 'number' &&
+                                typeof displayPrice == 'number' &&
                                 typeof props.prevPrice === 'number'
-                                    ? props.price >= props.prevPrice
+                                    ? displayPrice >= props.prevPrice
                                         ? 'text-[var(--green)]'
                                         : 'text-[var(--red)]'
                                     : ''
                             }
                         `}
                         >
-                            {typeof props.price === 'number'
-                                ? props.price
+                            {typeof displayPrice === 'number'
+                                ? displayPrice
                                 : '-'}
                         </span>
                     </div>
