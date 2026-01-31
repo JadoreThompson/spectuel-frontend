@@ -1,4 +1,4 @@
-import ChartPanel from '@/components/ChartPanel'
+import CloneChartPanel from '@/components/CloneChartPanel'
 import EventLog, { type Log } from '@/components/EventLog'
 import SpotOrderForm from '@/components/forms/SpotOrderForm'
 import Header from '@/components/Header'
@@ -10,23 +10,11 @@ import OrderHistoryTable from '@/components/tables/OrderHistoryTable'
 import { Button } from '@/components/ui/button'
 
 import { OrderStatus, OrderType, Side, type OrderRead } from '@/openapi'
-import {
-    type CandlestickData,
-    type ISeriesApi,
-    type Time,
-} from 'lightweight-charts'
+import { OrderEventType } from '@/types/events/enums'
 import { ChevronUp } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type FC } from 'react'
+import { useCallback, useEffect, useState, type FC } from 'react'
 
 // Custom types not in OpenAPI spec
-enum TimeFrame {
-    M5 = '5m',
-    M15 = '15m',
-    H1 = '1h',
-    H4 = '4h',
-    D1 = '1d',
-}
-
 interface TradeEvent {
     price: number
     quantity: number
@@ -35,17 +23,6 @@ interface TradeEvent {
 }
 
 type Trade = TradeEvent
-
-enum EventType {
-    ORDER_PLACED = 'order_placed',
-    ORDER_PARTIALLY_FILLED = 'order_partially_filled',
-    ORDER_FILLED = 'order_filled',
-    ORDER_CANCELLED = 'order_cancelled',
-    ORDER_MODIFIED = 'order_modified',
-    ORDER_MODIFY_REJECTED = 'order_modify_rejected',
-    ORDER_REJECTED = 'order_rejected',
-    NEW_TRADE = 'new_trade',
-}
 
 interface Instrument24h {
     h24_volume: number
@@ -62,33 +39,6 @@ type ConnectionStatus = 'connected' | 'connecting' | 'disconnected'
 type SpotTab = (typeof SPOT_TABS)[number]
 
 // Dummy Data Generation
-const generateDummyCandles = (): CandlestickData<Time>[] => {
-    const candles: CandlestickData<Time>[] = []
-    const baseTime = Math.floor(Date.now() / 1000) - 100 * 5 * 60
-    let price = 0.65
-
-    for (let i = 0; i < 100; i++) {
-        const open = price
-        const volatility = 0.02
-        const change = (Math.random() - 0.48) * volatility
-        const high = open + Math.random() * volatility
-        const low = open - Math.random() * volatility
-        const close = open + change
-
-        candles.push({
-            time: (baseTime + i * 5 * 60) as Time,
-            open: Number(open.toFixed(4)),
-            high: Number(Math.max(open, close, high).toFixed(4)),
-            low: Number(Math.min(open, close, low).toFixed(4)),
-            close: Number(close.toFixed(4)),
-        })
-
-        price = close
-    }
-
-    return candles
-}
-
 const generateDummyOrderBook = (): {
     bids: PriceLevel[]
     asks: PriceLevel[]
@@ -134,35 +84,35 @@ const generateDummyRecentTrades = (): Trade[] => {
 const generateDummyEvents = (): Log[] => {
     return [
         {
-            event_type: EventType.ORDER_FILLED,
+            event_type: OrderEventType.ORDER_FILLED,
             message: 'Order ID: ord_8f2a1b3c',
         },
         {
-            event_type: EventType.ORDER_PLACED,
+            event_type: OrderEventType.ORDER_PLACED,
             message: 'Order ID: ord_7e9d4c5a',
         },
         {
-            event_type: EventType.ORDER_PARTIALLY_FILLED,
+            event_type: OrderEventType.ORDER_PARTIALLY_FILLED,
             message: 'Order ID: ord_6b8c3d2e',
         },
         {
-            event_type: EventType.ORDER_FILLED,
+            event_type: OrderEventType.ORDER_FILLED,
             message: 'Order ID: ord_5a7b2c1d',
         },
         {
-            event_type: EventType.ORDER_PLACED,
+            event_type: OrderEventType.ORDER_PLACED,
             message: 'Order ID: ord_4c6a1b9e',
         },
         {
-            event_type: EventType.ORDER_CANCELLED,
+            event_type: OrderEventType.ORDER_CANCELLED,
             message: 'Order ID: ord_3d5e8f7a',
         },
         {
-            event_type: EventType.ORDER_FILLED,
+            event_type: OrderEventType.ORDER_FILLED,
             message: 'Order ID: ord_2e4d7c6b',
         },
         {
-            event_type: EventType.ORDER_PLACED,
+            event_type: OrderEventType.ORDER_PLACED,
             message: 'Order ID: ord_1f3c6b5a',
         },
     ]
@@ -374,13 +324,9 @@ const SpotTableCard: FC<{
 // Main Component
 const CloneTradingPage: FC = () => {
     const instrument = 'TRUMP-USD'
-    const [currentTimeFrame, setCurrentTimeFrame] = useState<TimeFrame>(
-        TimeFrame.M5
-    )
     const [tableTab, setTableTab] = useState<SpotTab>('orders')
 
     // Static dummy data
-    const [candles] = useState<CandlestickData<Time>[]>(generateDummyCandles)
     const [orderBook] = useState(generateDummyOrderBook)
     const [recentTrades] = useState<Trade[]>(generateDummyRecentTrades)
     const [events] = useState<Log[]>(generateDummyEvents)
@@ -390,8 +336,6 @@ const CloneTradingPage: FC = () => {
     const [assetBalance] = useState<number>(2500)
     const [connectionStatus] = useState<ConnectionStatus>('connected')
     const [prices] = useState({ price: 0.6523, prevPrice: 0.6498 })
-
-    const candleStickSeriesRef = useRef<ISeriesApi<'Candlestick'>>(null)
 
     const { showScrollToTop, scrollToTop } = useScrollToTop()
 
@@ -420,14 +364,15 @@ const CloneTradingPage: FC = () => {
                         {/* Chart and Market Data */}
                         <div className="h-150 max-h-150 flex flex-row gap-1">
                             <div className="h-150 grow-1 rounded-sm bg-background">
-                                <ChartPanel
-                                    {...dummyInstrumentSummary}
-                                    {...prices}
-                                    instrument={instrument}
-                                    candles={candles}
-                                    seriesRef={candleStickSeriesRef}
-                                    defaultTimeFrame={TimeFrame.M5}
-                                    onTimeFrameChange={setCurrentTimeFrame}
+                                <CloneChartPanel
+                                    symbol={instrument}
+                                    price={prices.price}
+                                    prevPrice={prices.prevPrice}
+                                    h24_change={dummyInstrumentSummary.h24_change}
+                                    h24_high={dummyInstrumentSummary.h24_high}
+                                    h24_low={dummyInstrumentSummary.h24_low}
+                                    h24_volume={dummyInstrumentSummary.h24_volume}
+                                    defaultTimeFrame="5m"
                                     onInstrumentSelect={(
                                         instrument: string
                                     ) => {

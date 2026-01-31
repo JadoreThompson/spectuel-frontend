@@ -1,8 +1,3 @@
-import {
-    useGetMarketBarsQuery,
-    useGetMarketStatsQuery,
-    type BarUpdateEvent,
-} from '@/hooks/market-hooks'
 import { TimeFrame } from '@/openapi'
 import {
     CandlestickSeries,
@@ -19,7 +14,35 @@ import InstrumentSelector from './InstrumentSelector'
 import Logo from './Logo'
 import { Button } from './ui/button'
 
-const ChartPanel: FC<{
+// Generate dummy candles
+const generateDummyCandles = (): CandlestickData<Time>[] => {
+    const candles: CandlestickData<Time>[] = []
+    const baseTime = Math.floor(Date.now() / 1000) - 100 * 5 * 60
+    let price = 0.65
+
+    for (let i = 0; i < 100; i++) {
+        const open = price
+        const volatility = 0.02
+        const change = (Math.random() - 0.48) * volatility
+        const high = open + Math.random() * volatility
+        const low = open - Math.random() * volatility
+        const close = open + change
+
+        candles.push({
+            time: (baseTime + i * 5 * 60) as Time,
+            open: Number(open.toFixed(4)),
+            high: Number(Math.max(open, close, high).toFixed(4)),
+            low: Number(Math.min(open, close, low).toFixed(4)),
+            close: Number(close.toFixed(4)),
+        })
+
+        price = close
+    }
+
+    return candles
+}
+
+const CloneChartPanel: FC<{
     symbol: string
     price?: number | null
     prevPrice?: number | null
@@ -29,7 +52,6 @@ const ChartPanel: FC<{
     h24_volume?: number | null
     defaultTimeFrame?: TimeFrame
     onInstrumentSelect: (symbol: string) => void
-    barUpdate?: BarUpdateEvent | null
 }> = (props) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const chartRef = useRef<IChartApi | null>(null)
@@ -41,33 +63,10 @@ const ChartPanel: FC<{
     const [isSelectorOpen, setIsSelectorOpen] = useState(false)
     const triggerRef = useRef<HTMLDivElement>(null)
 
-    // Fetch historical bars
-    const barsQuery = useGetMarketBarsQuery(props.symbol, {
-        timeframe: timeFrame,
-    })
-
-    // Fetch market stats
-    const statsQuery = useGetMarketStatsQuery(props.symbol)
-
-    // Handle bar updates from parent component
-    useEffect(() => {
-        if (!props.barUpdate) return
-        if (
-            props.barUpdate.symbol !== props.symbol ||
-            props.barUpdate.timeframe !== timeFrame
-        )
-            return
-
-        if (seriesRef.current) {
-            seriesRef.current.update({
-                time: props.barUpdate.timestamp as Time,
-                open: props.barUpdate.open,
-                high: props.barUpdate.high,
-                low: props.barUpdate.low,
-                close: props.barUpdate.close,
-            })
-        }
-    }, [props.barUpdate, props.symbol, timeFrame])
+    // Static dummy data instead of API calls
+    const [dummyCandles] = useState<CandlestickData<Time>[]>(
+        generateDummyCandles
+    )
 
     // Initialize chart
     useEffect(() => {
@@ -106,53 +105,26 @@ const ChartPanel: FC<{
         }
     }, [])
 
-    // Update chart data when bars are fetched
+    // Update chart data with dummy candles
     useEffect(() => {
-        if (barsQuery.data?.status === 200 && seriesRef.current) {
-            const bars = barsQuery.data.data.bars
-            const candleData: CandlestickData<Time>[] = bars.map((bar) => ({
-                time: bar.timestamp as Time,
-                open: bar.open,
-                high: bar.high,
-                low: bar.low,
-                close: bar.close,
-            }))
-
-            seriesRef.current.setData(candleData)
+        if (seriesRef.current && dummyCandles.length > 0) {
+            seriesRef.current.setData(dummyCandles)
             setIsLoading(false)
         }
-    }, [barsQuery.data])
-
-    // Refetch when symbol or timeframe changes
-    useEffect(() => {
-        setIsLoading(true)
-    }, [props.symbol, timeFrame])
+    }, [dummyCandles])
 
     // Calculate display price - use last candle's close if price prop is null/undefined
     const displayPrice =
         props.price ??
-        (barsQuery.data?.status === 200 && barsQuery.data.data.bars.length > 0
-            ? barsQuery.data.data.bars[barsQuery.data.data.bars.length - 1]
-                  .close
+        (dummyCandles.length > 0
+            ? dummyCandles[dummyCandles.length - 1].close
             : null)
 
-    // Get stats from query or fallback to props
-    const h24_change =
-        statsQuery.data?.status === 200
-            ? statsQuery.data.data.change_24h
-            : props.h24_change
-    const h24_high =
-        statsQuery.data?.status === 200
-            ? statsQuery.data.data.high_24h
-            : props.h24_high
-    const h24_low =
-        statsQuery.data?.status === 200
-            ? statsQuery.data.data.low_24h
-            : props.h24_low
-    const h24_volume =
-        statsQuery.data?.status === 200
-            ? statsQuery.data.data.volume_24h
-            : props.h24_volume
+    // Use props directly for stats (no API calls)
+    const h24_change = props.h24_change
+    const h24_high = props.h24_high
+    const h24_low = props.h24_low
+    const h24_volume = props.h24_volume
 
     return (
         <div className="w-full h-full flex flex-col p-5 gap-1">
@@ -283,4 +255,4 @@ const ChartPanel: FC<{
         </div>
     )
 }
-export default ChartPanel
+export default CloneChartPanel
