@@ -7,7 +7,8 @@
 import { customFetch } from './lib/custom-fetch'
 export interface AssetBalanceItem {
     symbol: string
-    quantity: number
+    balance: number
+    escrow_balance: number
 }
 
 export type BalanceEventReadPayload = { [key: string]: unknown }

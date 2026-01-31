@@ -37,10 +37,10 @@ const AssetPieChart: FC = () => {
     const chartData =
         assetBalancesQuery.data?.status === 200
             ? assetBalancesQuery.data.data
-                  .filter((item) => item.quantity > 0)
+                  .filter((item) => item.balance - item.escrow_balance > 0)
                   .map((item) => ({
                       name: item.symbol,
-                      value: item.quantity,
+                      value: item.balance - item.escrow_balance,
                   }))
             : []
 
@@ -106,7 +106,7 @@ const AssetBalanceTable: FC<{ balances: AssetBalanceItem[] }> = ({
                             Symbol
                         </th>
                         <th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
-                            Quantity
+                            Available Balance
                         </th>
                     </tr>
                 </thead>
@@ -121,13 +121,12 @@ const AssetBalanceTable: FC<{ balances: AssetBalanceItem[] }> = ({
                                     {balance.symbol}
                                 </td>
                                 <td className="text-right py-3 px-4 text-sm text-white">
-                                    {balance.quantity.toLocaleString(
-                                        undefined,
-                                        {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 8,
-                                        }
-                                    )}
+                                    {(
+                                        balance.balance - balance.escrow_balance
+                                    ).toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 8,
+                                    })}
                                 </td>
                             </tr>
                         ))

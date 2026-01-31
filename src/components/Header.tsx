@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { Bell, User } from 'lucide-react'
+import { User } from 'lucide-react'
 import type { FC } from 'react'
 import { Link } from 'react-router'
 import Logo from './Logo'
@@ -17,15 +17,6 @@ const Header: FC = () => {
                 </div>
             </div>
             <div className="w-fit h-full flex flex-row items-center gap-2 px-2">
-                <Link to="#" className="relative ">
-                    <Bell
-                        className={cn(
-                            'size-5 hover:text-blue-300 shake-notification'
-                        )}
-                    />
-                    <div className="w-2 h-2 absolute top-0 right-0 rounded-full bg-red-500"></div>
-                </Link>
-
                 <Link to="/user">
                     <User className={cn('size-5 hover:text-blue-300')} />
                 </Link>

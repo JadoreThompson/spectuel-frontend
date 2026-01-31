@@ -28,6 +28,7 @@ import {
     GetUserEventsUserEventsGetType,
     OrderStatus,
     Side,
+    TimeFrame,
     type GetOrdersOrdersGetParams,
     type OrderEventRead,
     type OrderRead,
@@ -39,6 +40,7 @@ import { toast } from 'sonner'
 // Custom types
 interface UserOverviewResponse {
     cash_balance: number
+    cash_escrow_balance: number
     data: { [k: string]: number }
 }
 
@@ -191,10 +193,12 @@ const TradingPage: FC = () => {
     }, [])
 
     // Update balance when user overview data changes
+    // Update balance when user overview data changes
     useEffect(() => {
+        console.log('User overiew response', userOverviewQuery.data)
         if (userOverviewQuery.data?.status === 200) {
             const data = userOverviewQuery.data.data as UserOverviewResponse
-            setBalance(data.cash_balance)
+            setBalance(data.cash_balance - data.cash_escrow_balance)
         }
     }, [userOverviewQuery.data])
 
@@ -204,7 +208,7 @@ const TradingPage: FC = () => {
             const balances = assetBalancesQuery.data.data
             const assetItem = balances.find((item) => item.symbol === symbol)
             if (assetItem) {
-                setAssetBalance(assetItem.quantity)
+                setAssetBalance(assetItem.balance - assetItem.escrow_balance)
             }
         }
     }, [assetBalancesQuery.data, symbol])
@@ -360,7 +364,7 @@ const TradingPage: FC = () => {
             bars: [
                 {
                     symbol: symbol!,
-                    timeframes: ['1m', '5m'], // Default timeframe
+                    timeframes: Object.values(TimeFrame),
                 },
             ],
             trades: [symbol!],
@@ -428,12 +432,12 @@ const TradingPage: FC = () => {
         ws.onopen = () => {
             setConnectionStatus('connecting')
             ws.send(JSON.stringify({ token: wsToken }))
-            handleWsHeartbeat(ws)
         }
 
         ws.onmessage = (e) => {
             if (e.data === 'connected') {
                 setConnectionStatus('connected')
+                handleWsHeartbeat(ws)
                 return
             }
 
@@ -538,6 +542,36 @@ const TradingPage: FC = () => {
                     // Remove from open orders only
                     handleOrderRemoval(msg.order.order_id)
                     toast.info(`Order cancelled: ${msg.order.symbol}`)
+                }
+            }
+
+            // Handle balance events
+            if (msg.type && msg.type.startsWith('cash_')) {
+                if (msg.type === 'cash_balance_increased') {
+                    setBalance((prev) => (prev ?? 0) + msg.amount)
+                } else if (msg.type === 'cash_balance_decreased') {
+                    setBalance((prev) => (prev ?? 0) - msg.amount)
+                } else if (msg.type === 'cash_escrow_increased') {
+                    setBalance((prev) => (prev ?? 0) - msg.amount)
+                } else if (msg.type === 'cash_escrow_decreased') {
+                    setBalance((prev) => (prev ?? 0) + msg.amount)
+                }
+            }
+
+            // Handle asset balance events
+            if (
+                msg.type &&
+                msg.type.startsWith('asset_') &&
+                msg.symbol === symbol
+            ) {
+                if (msg.type === 'asset_balance_increased') {
+                    setAssetBalance((prev) => (prev ?? 0) + msg.amount)
+                } else if (msg.type === 'asset_balance_decreased') {
+                    setAssetBalance((prev) => (prev ?? 0) - msg.amount)
+                } else if (msg.type === 'asset_escrow_increased') {
+                    setAssetBalance((prev) => (prev ?? 0) - msg.amount)
+                } else if (msg.type === 'asset_escrow_decreased') {
+                    setAssetBalance((prev) => (prev ?? 0) + msg.amount)
                 }
             }
         }
