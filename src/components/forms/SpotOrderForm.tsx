@@ -55,9 +55,6 @@ const SpotOrderForm: FC<{
             const response = await createOrderMutation.mutateAsync(orderData)
 
             if (response.status === 202) {
-                // console.log('Current target', e.currentTarget)
-                // console.log('Event', e)
-                // ;(e.target as HTMLFormElement).reset()
                 props.onOrderPlaced(response.data.order)
             }
         } catch (error: any) {
