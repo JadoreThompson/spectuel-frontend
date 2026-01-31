@@ -1,12 +1,14 @@
 import Header from '@/components/Header'
-import OrderHistoryTable from '@/components/tables/OrderHistoryTable'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { HTTP_BASE_URL } from '@/config'
-import { type OrderRead, type PaginatedResponseOrderRead } from '@/openapi'
-import { AreaSeries, createChart, type ISeriesApi } from 'lightweight-charts'
+import {
+    useGetAssetBalancesQuery,
+    useGetUserOverviewQuery,
+} from '@/hooks/user-hooks'
+import { type AssetBalanceItem } from '@/openapi'
 import { ChevronUp } from 'lucide-react'
-import { useEffect, useRef, useState, type FC } from 'react'
+import { useEffect, useState, type FC } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 // Types
 type UserOverview = {
@@ -14,109 +16,144 @@ type UserOverview = {
     portfolio_balance: number
     data: { [key: string]: number }
 }
-const tableTabs = ['history']
+const tableTabs = ['balances']
 type Tab = (typeof tableTabs)[number]
-interface BalanceItem {
-    time: string
-    value: number
-}
 
-const BalanceChart: FC = () => {
-    const chartContainerRef = useRef<HTMLDivElement>(null)
-    const chartRef = useRef<ReturnType<typeof createChart> | null>(null)
-    const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
+// Colors for pie chart
+const COLORS = [
+    '#0088FE',
+    '#00C49F',
+    '#FFBB28',
+    '#FF8042',
+    '#8884D8',
+    '#82CA9D',
+    '#FFC658',
+    '#FF6B9D',
+]
 
-    const [data, setData] = useState<BalanceItem[]>([])
+const AssetPieChart: FC = () => {
+    const assetBalancesQuery = useGetAssetBalancesQuery()
 
-    useEffect(() => {
-        const fetchBalanceHistory = async () => {
-            const rsp = await fetch(
-                HTTP_BASE_URL + '/user/history?interval=1d',
-                {
-                    credentials: 'include',
-                }
-            )
-            if (rsp.ok) {
-                const data = await rsp.json()
-                const formattedData = data.map((d: BalanceItem) => ({
-                    time: Math.floor(new Date(d.time).getTime() / 1000),
-                    value: d.value,
-                }))
-                setData(formattedData)
-            }
-        }
-
-        fetchBalanceHistory()
-    }, [])
-
-    useEffect(() => {
-        if (!chartContainerRef.current) return
-
-        chartRef.current = createChart(chartContainerRef.current, {
-            layout: {
-                background: { color: 'transparent' },
-                textColor: 'white',
-                attributionLogo: false,
-            },
-            grid: {
-                vertLines: { visible: false },
-                horzLines: { visible: false },
-            },
-            timeScale: {
-                timeVisible: true,
-                secondsVisible: false,
-                borderColor: '#ccc',
-            },
-            rightPriceScale: {
-                borderColor: '#ccc',
-            },
-            localization: {
-                priceFormatter: (price: number) =>
-                    `$${price.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                    })}`,
-            },
-        })
-
-        areaSeriesRef.current = chartRef.current.addSeries(AreaSeries)
-        chartRef.current.timeScale().fitContent()
-    }, [])
-
-    useEffect(() => {
-        if (data.length && areaSeriesRef.current) {
-            areaSeriesRef.current.setData(data)
-        }
-    }, [data])
+    const chartData =
+        assetBalancesQuery.data?.status === 200
+            ? assetBalancesQuery.data.data
+                  .filter((item) => item.quantity > 0)
+                  .map((item) => ({
+                      name: item.symbol,
+                      value: item.quantity,
+                  }))
+            : []
 
     return (
         <div className="w-full h-full flex flex-col bg-transparent border-none">
             <div className="flex items-center gap-2 space-y-0 sm:flex-row mb-4">
                 <div className="flex-1">
-                    <h2 className="text-lg font-semibold">Balance History</h2>
+                    <h2 className="text-lg font-semibold">
+                        Asset Distribution
+                    </h2>
                     <p className="text-sm text-gray-500">
-                        Showing balance over time
+                        Portfolio allocation by asset
                     </p>
                 </div>
             </div>
             <div className="flex-1 w-full">
-                <div ref={chartContainerRef} className="w-full h-full" />
+                {assetBalancesQuery.isLoading ? (
+                    <Skeleton className="w-full h-full" />
+                ) : chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={chartData}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) =>
+                                    `${name}: ${(percent * 100).toFixed(0)}%`
+                                }
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                            >
+                                {chartData.map((_, index) => (
+                                    <Cell
+                                        key={`cell-${index}`}
+                                        fill={COLORS[index % COLORS.length]}
+                                    />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                        </PieChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                        No asset balances to display
+                    </div>
+                )}
             </div>
         </div>
     )
 }
 
-const UserOverviewPage: FC = () => {
-    const pageNumRef = useRef<number>(0)
-
-    const [userOverview, setUserOverview] = useState<UserOverview | undefined>(
-        undefined
+const AssetBalanceTable: FC<{ balances: AssetBalanceItem[] }> = ({
+    balances,
+}) => {
+    return (
+        <div className="w-full overflow-auto">
+            <table className="w-full">
+                <thead>
+                    <tr className="border-b border-zinc-800">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">
+                            Symbol
+                        </th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">
+                            Quantity
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {balances.length > 0 ? (
+                        balances.map((balance, index) => (
+                            <tr
+                                key={index}
+                                className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors"
+                            >
+                                <td className="text-left py-3 px-4 text-sm text-white">
+                                    {balance.symbol}
+                                </td>
+                                <td className="text-right py-3 px-4 text-sm text-white">
+                                    {balance.quantity.toLocaleString(
+                                        undefined,
+                                        {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 8,
+                                        }
+                                    )}
+                                </td>
+                            </tr>
+                        ))
+                    ) : (
+                        <tr>
+                            <td
+                                colSpan={2}
+                                className="text-center py-8 text-gray-500"
+                            >
+                                No asset balances available
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
     )
+}
 
-    const [tableTab, setTableTab] = useState<Tab>('history')
-    const [orderHistory, setOrderHistory] = useState<OrderRead[]>([])
+const UserOverviewPage: FC = () => {
+    const [tableTab, setTableTab] = useState<Tab>('balances')
     const [showScrollToTop, setShowScollToTop] = useState<boolean>(false)
-    const [isLoading, setIsLoading] = useState<boolean>(false)
+
+    // React Query hooks
+    const userOverviewQuery = useGetUserOverviewQuery()
+    const assetBalancesQuery = useGetAssetBalancesQuery()
 
     useEffect(() => {
         const scrollEvent = () =>
@@ -131,44 +168,15 @@ const UserOverviewPage: FC = () => {
         }
     }, [])
 
-    useEffect(() => {
-        const fetchUserSummary = async () => {
-            const rsp = await fetch(HTTP_BASE_URL + '/user', {
-                credentials: 'include',
-            })
+    const userOverview =
+        userOverviewQuery.data?.status === 200
+            ? (userOverviewQuery.data.data as UserOverview)
+            : undefined
 
-            if (rsp.ok) {
-                const data: UserOverview = await rsp.json()
-                setUserOverview(data)
-            } else {
-                console.error('Error fetching user summary.', rsp)
-            }
-        }
-
-        fetchUserSummary()
-    }, [])
-
-    async function fetchOrderHistory(): Promise<void> {
-        if (pageNumRef.current == 1) {
-            setIsLoading(true)
-        }
-
-        const params = new URLSearchParams()
-
-        params.append('page', pageNumRef.current.toString())
-
-        const rsp = await fetch(HTTP_BASE_URL + `/orders?${params}`, {
-            credentials: 'include',
-        })
-        if (rsp.ok) {
-            const data: PaginatedResponseOrderRead = await rsp.json()
-            setOrderHistory((prev) => [...prev, ...data.data])
-        }
-
-        if (pageNumRef.current == 1) {
-            setIsLoading(false)
-        }
-    }
+    const assetBalances =
+        assetBalancesQuery.data?.status === 200
+            ? assetBalancesQuery.data.data
+            : []
 
     return (
         <>
@@ -197,26 +205,26 @@ const UserOverviewPage: FC = () => {
                                 </div>
                             </div>
 
-                            {/* Balance Chart Container */}
+                            {/* Pie Chart Container */}
                             <div className="flex-1 h-100 p-3 bg-background border border-zinc-800 rounded-xl">
-                                <BalanceChart />
+                                <AssetPieChart />
                             </div>
                         </div>
                     </section>
 
                     {/* Tables */}
                     <section className="min-h-150 border border-zinc-800 rounded-xl bg-background overflow-hidden p-1">
-                        {isLoading ? (
-                            <Skeleton className="w-full h-ull" />
+                        {assetBalancesQuery.isLoading ? (
+                            <Skeleton className="w-full h-full" />
                         ) : (
                             <>
                                 <div className="w-full mb-2 flex items-center justify-start p-3">
                                     {tableTabs.map((tab) => (
                                         <Button
+                                            key={tab}
                                             type="button"
                                             className={`bg-transparent hover:bg-transparent rounded-none border-b-2 hover:text-white cursor-pointer ${tableTab == tab ? 'border-b-white text-white' : 'border-b-transparent text-neutral-900'}`}
                                             onClick={() => {
-                                                pageNumRef.current = 1
                                                 setTableTab(tab)
                                             }}
                                         >
@@ -226,12 +234,8 @@ const UserOverviewPage: FC = () => {
                                     ))}
                                 </div>
                                 <div className="w-full p-3">
-                                    <OrderHistoryTable
-                                        orders={orderHistory}
-                                        onScrollEnd={() => {
-                                            pageNumRef.current += 1
-                                            fetchOrderHistory()
-                                        }}
+                                    <AssetBalanceTable
+                                        balances={assetBalances}
                                     />
                                 </div>
                             </>
