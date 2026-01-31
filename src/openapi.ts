@@ -55,6 +55,15 @@ export interface HTTPValidationError {
     detail?: ValidationError[]
 }
 
+export interface MarketStatsResponse {
+    symbol: string
+    change_24h: number
+    high_24h: number
+    low_24h: number
+    volume_24h: number
+    last_price?: number | null
+}
+
 export type StrategyType = (typeof StrategyType)[keyof typeof StrategyType]
 
 export const StrategyType = {
@@ -1545,6 +1554,51 @@ export const getMarketSymbolsMarketsSymbolsGet = async (
 ): Promise<getMarketSymbolsMarketsSymbolsGetResponse> => {
     return customFetch<getMarketSymbolsMarketsSymbolsGetResponse>(
         getGetMarketSymbolsMarketsSymbolsGetUrl(),
+        {
+            ...options,
+            method: 'GET',
+        }
+    )
+}
+
+/**
+ * Retrieves 24-hour market statistics for a given symbol.
+Returns 24h change, high, low, volume, and last price.
+ * @summary Get Market Stats
+ */
+export type getMarketStatsMarketsSymbolStatsGetResponse200 = {
+    data: MarketStatsResponse
+    status: 200
+}
+
+export type getMarketStatsMarketsSymbolStatsGetResponse422 = {
+    data: HTTPValidationError
+    status: 422
+}
+
+export type getMarketStatsMarketsSymbolStatsGetResponseSuccess =
+    getMarketStatsMarketsSymbolStatsGetResponse200 & {
+        headers: Headers
+    }
+export type getMarketStatsMarketsSymbolStatsGetResponseError =
+    getMarketStatsMarketsSymbolStatsGetResponse422 & {
+        headers: Headers
+    }
+
+export type getMarketStatsMarketsSymbolStatsGetResponse =
+    | getMarketStatsMarketsSymbolStatsGetResponseSuccess
+    | getMarketStatsMarketsSymbolStatsGetResponseError
+
+export const getGetMarketStatsMarketsSymbolStatsGetUrl = (symbol: string) => {
+    return `/markets/${symbol}/stats`
+}
+
+export const getMarketStatsMarketsSymbolStatsGet = async (
+    symbol: string,
+    options?: RequestInit
+): Promise<getMarketStatsMarketsSymbolStatsGetResponse> => {
+    return customFetch<getMarketStatsMarketsSymbolStatsGetResponse>(
+        getGetMarketStatsMarketsSymbolStatsGetUrl(symbol),
         {
             ...options,
             method: 'GET',

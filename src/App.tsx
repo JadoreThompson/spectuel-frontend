@@ -3,7 +3,6 @@ import { BrowserRouter, Route, Routes } from 'react-router'
 import AuthGuard from './components/AuthGuard'
 
 import CloneTradingPage from './pages/CloneTradingPage'
-import InstrumentCreatePage from './pages/InstrumentCreatePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import TradingPage from './pages/TradingPage'
@@ -34,12 +33,12 @@ function App() {
                         // element={<AuthGuard children={<TradingPage />} />}
                         element={<TradingPage />}
                     />
-                    <Route
+                    {/* <Route
                         path="/instrument"
                         element={
                             <AuthGuard children={<InstrumentCreatePage />} />
                         }
-                    />
+                    /> */}
                     <Route path="/demo" element={<CloneTradingPage />} />
                 </Routes>
             </BrowserRouter>

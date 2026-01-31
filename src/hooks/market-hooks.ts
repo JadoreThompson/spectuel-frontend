@@ -1,6 +1,7 @@
 import { WS_BASE_URL } from '@/config'
 import {
     getMarketBarsMarketsSymbolBarsGet,
+    getMarketStatsMarketsSymbolStatsGet,
     getMarketSymbolsMarketsSymbolsGet,
     type GetMarketBarsMarketsSymbolBarsGetParams,
 } from '@/openapi'
@@ -28,6 +29,15 @@ export const useGetMarketSymbolsQuery = () => {
     return useQuery({
         queryKey: ['marketSymbols'],
         queryFn: () => getMarketSymbolsMarketsSymbolsGet(),
+    })
+}
+
+// Get Market Stats Query
+export const useGetMarketStatsQuery = (symbol: string) => {
+    return useQuery({
+        queryKey: ['marketStats', symbol],
+        queryFn: () => getMarketStatsMarketsSymbolStatsGet(symbol),
+        enabled: !!symbol,
     })
 }
 

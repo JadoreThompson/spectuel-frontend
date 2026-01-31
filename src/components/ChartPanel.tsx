@@ -1,5 +1,6 @@
 import {
     useGetMarketBarsQuery,
+    useGetMarketStatsQuery,
     type BarUpdateEvent,
 } from '@/hooks/market-hooks'
 import { TimeFrame as TimeFrameEnum } from '@/openapi'
@@ -55,6 +56,9 @@ const ChartPanel: FC<{
     const barsQuery = useGetMarketBarsQuery(props.symbol, {
         timeframe: timeFrame as TimeFrameEnum,
     })
+
+    // Fetch market stats
+    const statsQuery = useGetMarketStatsQuery(props.symbol)
 
     // Handle bar updates from parent component
     useEffect(() => {
@@ -143,6 +147,24 @@ const ChartPanel: FC<{
                   .close
             : null)
 
+    // Get stats from query or fallback to props
+    const h24_change =
+        statsQuery.data?.status === 200
+            ? statsQuery.data.data.change_24h
+            : props.h24_change
+    const h24_high =
+        statsQuery.data?.status === 200
+            ? statsQuery.data.data.high_24h
+            : props.h24_high
+    const h24_low =
+        statsQuery.data?.status === 200
+            ? statsQuery.data.data.low_24h
+            : props.h24_low
+    const h24_volume =
+        statsQuery.data?.status === 200
+            ? statsQuery.data.data.volume_24h
+            : props.h24_volume
+
     return (
         <div className="w-full h-full flex flex-col p-5 gap-1">
             <div className="w-full h-15 flex flex-row items-center justify-start">
@@ -193,16 +215,16 @@ const ChartPanel: FC<{
                             font-semibold
                             text-sm
                             ${
-                                typeof props.h24_change === 'number'
-                                    ? props.h24_change >= 0
+                                typeof h24_change === 'number'
+                                    ? h24_change >= 0
                                         ? 'text-[var(--green)]'
                                         : 'text-[var(--red)]'
                                     : ''
                             }
                         `}
                         >
-                            {typeof props.h24_change === 'number'
-                                ? `${props.h24_change.toFixed(2)}%`
+                            {typeof h24_change === 'number'
+                                ? `${h24_change.toFixed(2)}%`
                                 : '-'}
                         </span>
                     </div>
@@ -214,8 +236,8 @@ const ChartPanel: FC<{
                             24h High
                         </span>
                         <span className="text-right font-semibold text-sm">
-                            {typeof props.h24_high === 'number'
-                                ? props.h24_high.toFixed(2)
+                            {typeof h24_high === 'number'
+                                ? h24_high.toFixed(2)
                                 : '-'}
                         </span>
                     </div>
@@ -227,8 +249,8 @@ const ChartPanel: FC<{
                             24h Low
                         </span>
                         <span className="text-right font-semibold text-sm">
-                            {typeof props.h24_low === 'number'
-                                ? props.h24_low.toFixed(2)
+                            {typeof h24_low === 'number'
+                                ? h24_low.toFixed(2)
                                 : '-'}
                         </span>
                     </div>
@@ -240,8 +262,8 @@ const ChartPanel: FC<{
                             24h Volume
                         </span>
                         <span className="text-right font-semibold text-sm">
-                            {typeof props.h24_volume === 'number'
-                                ? props.h24_volume.toFixed(2)
+                            {typeof h24_volume === 'number'
+                                ? h24_volume.toFixed(2)
                                 : '-'}
                         </span>
                     </div>
