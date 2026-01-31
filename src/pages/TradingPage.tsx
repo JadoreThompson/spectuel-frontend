@@ -11,19 +11,19 @@ import OrderHistoryTable from '@/components/tables/OrderHistoryTable'
 import { Button } from '@/components/ui/button'
 
 import { WS_BASE_URL } from '@/config'
-import {
-    useGetAssetBalancesQuery,
-    useGetOrdersQuery,
-    useGetUserEventsQuery,
-    useGetUserOverviewQuery,
-    useGetWsTokenQuery,
-} from '@/hooks'
+import { useGetWsTokenQuery } from '@/hooks/auth-hooks'
 import {
     useMarketsWebSocket,
     type BarUpdateEvent,
     type OrderbookSnapshot,
     type TradeEvent,
 } from '@/hooks/market-hooks'
+import { useGetOrdersQuery } from '@/hooks/order-hooks'
+import {
+    useGetAssetBalancesQuery,
+    useGetUserEventsQuery,
+    useGetUserOverviewQuery,
+} from '@/hooks/user-hooks'
 import {
     GetUserEventsUserEventsGetType,
     OrderStatus,

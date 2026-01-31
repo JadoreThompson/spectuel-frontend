@@ -1,45 +1,48 @@
 import AuthLayout from '@/components/layouts/AuthLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { HTTP_BASE_URL } from '@/config'
+import { useGetMeQuery, useLoginMutation } from '@/hooks/auth-hooks'
 import useAuthStore from '@/stores/useAuthStore'
 import { useEffect, useState, type FC } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 const LoginPage: FC = () => {
     const navigate = useNavigate()
-    const { setIsLoggedIn } = useAuthStore()
     const [error, setError] = useState<string | null>(null)
 
+    const setIsLoggedIn = useAuthStore((state) => state.setIsLoggedIn)
+
+    // React Query hooks
+    const meQuery = useGetMeQuery()
+    const loginMutation = useLoginMutation()
+
+    // Redirect if already logged in
     useEffect(() => {
-        const checkIsLoggedIn = async () => {
-            const rsp = await fetch(HTTP_BASE_URL + '/auth/me', {
-                credentials: 'include',
-            })
-            if (rsp.ok) {
-                navigate('/spot/BTC-USD')
-            }
-        }
-        checkIsLoggedIn()
-    }, [])
-
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        setError('Invalid credentials. Please try again.')
-
-        const rsp = await fetch(HTTP_BASE_URL + '/auth/login', {
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(new FormData(e.currentTarget)),
-        })
-
-        if (rsp.ok) {
-            setError(null)
+        if (meQuery.data?.status === 200) {
             setIsLoggedIn(true)
             navigate('/spot/BTC-USD')
         }
+    }, [meQuery.data, navigate])
 
-        const data = await rsp.json()
-        setError(data['error'])
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setError(null)
+
+        const formData = new FormData(e.currentTarget)
+        const credentials = {
+            email: formData.get('email') as string,
+            password: formData.get('password') as string,
+        }
+
+        try {
+            await loginMutation.mutateAsync(credentials)
+            setIsLoggedIn(true)
+            navigate('/spot/BTC-USD')
+        } catch (err: any) {
+            setError(
+                err?.body?.error || 'Invalid credentials. Please try again.'
+            )
+        }
     }
 
     return (
@@ -60,6 +63,7 @@ const LoginPage: FC = () => {
                     </label>
                     <Input
                         id="email"
+                        name="email"
                         type="email"
                         placeholder="name@example.com"
                         required
@@ -82,6 +86,7 @@ const LoginPage: FC = () => {
                     </div>
                     <Input
                         id="password"
+                        name="password"
                         type="password"
                         placeholder="*****"
                         required
@@ -94,8 +99,12 @@ const LoginPage: FC = () => {
                     </div>
                 )}
 
-                <Button type="submit" className="w-full">
-                    Log In
+                <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={loginMutation.isPending}
+                >
+                    {loginMutation.isPending ? 'Logging in...' : 'Log In'}
                 </Button>
             </form>
         </AuthLayout>

@@ -3,7 +3,7 @@ import { type FC, type ReactNode, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 
 const AuthGuard: FC<{ children: ReactNode }> = ({ children }) => {
-    const { isLoggedIn } = useAuthStore()
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
     const navigate = useNavigate()
 
     useEffect(() => {

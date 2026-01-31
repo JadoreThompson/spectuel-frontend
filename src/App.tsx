@@ -22,7 +22,8 @@ function App() {
                     />
                     <Route
                         path="/login"
-                        element={<AuthGuard children={<LoginPage />} />}
+                        // element={<AuthGuard children={<LoginPage />} />}
+                        element={<LoginPage />}
                     />
                     <Route
                         path="/user"

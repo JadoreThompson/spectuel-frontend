@@ -1,7 +1,7 @@
 import AuthLayout from '@/components/layouts/AuthLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { HTTP_BASE_URL } from '@/config'
+import { useGetMeQuery, useRegisterMutation } from '@/hooks/auth-hooks'
 import useAuthStore from '@/stores/useAuthStore'
 import { useEffect, useState, type FC } from 'react'
 import { useNavigate } from 'react-router'
@@ -11,45 +11,44 @@ const RegisterPage: FC = () => {
     const { setIsLoggedIn } = useAuthStore()
     const [error, setError] = useState<string | null>(null)
 
+    // React Query hooks
+    const meQuery = useGetMeQuery()
+    const registerMutation = useRegisterMutation()
+
+    // Redirect if already logged in
     useEffect(() => {
-        const checkIsLoggedIn = async () => {
-            const rsp = await fetch(HTTP_BASE_URL + '/auth/me', {
-                credentials: 'include',
-            })
-            if (rsp.ok) {
-                navigate('/spot/BTC-USD')
-            }
+        if (meQuery.data?.status === 200) {
+            navigate('/spot/BTC-USD')
         }
-        checkIsLoggedIn()
-    }, [])
+    }, [meQuery.data, navigate])
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
+        setError(null)
+
         const formData = new FormData(e.currentTarget)
-        const password = formData.get('password')
-        const confirmPassword = formData.get('confirm-password')
+        const password = formData.get('password') as string
+        const confirmPassword = formData.get('confirm-password') as string
 
         if (password !== confirmPassword) {
             setError('Passwords do not match.')
-        } else {
-            setError(null)
-            await performRegister(formData)
+            return
         }
-    }
 
-    const performRegister = async (formData: FormData) => {
-        const rsp = await fetch(HTTP_BASE_URL + '/auth/register', {
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-        })
+        const credentials = {
+            username: formData.get('username') as string,
+            email: formData.get('email') as string,
+            password: password,
+        }
 
-        if (rsp.ok) {
-            setError(null)
+        try {
+            await registerMutation.mutateAsync(credentials)
             setIsLoggedIn(true)
             navigate('/spot/BTC-USD')
-        } else {
-            const data = await rsp.json()
-            setError(data['error'])
+        } catch (err: any) {
+            setError(
+                err?.body?.error || 'Registration failed. Please try again.'
+            )
         }
     }
 
@@ -71,8 +70,24 @@ const RegisterPage: FC = () => {
                     </label>
                     <Input
                         id="username"
+                        name="username"
                         type="text"
                         placeholder="yourusername"
+                        required
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label
+                        htmlFor="email"
+                        className="text-sm font-medium text-muted-foreground"
+                    >
+                        Email
+                    </label>
+                    <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="name@example.com"
                         required
                     />
                 </div>
@@ -113,8 +128,14 @@ const RegisterPage: FC = () => {
                     </div>
                 )}
 
-                <Button type="submit" className="w-full">
-                    Create Account
+                <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={registerMutation.isPending}
+                >
+                    {registerMutation.isPending
+                        ? 'Creating Account...'
+                        : 'Create Account'}
                 </Button>
             </form>
         </AuthLayout>
