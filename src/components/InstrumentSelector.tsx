@@ -12,12 +12,8 @@ interface InstrumentSelectorProps {
     triggerRef: React.RefObject<HTMLElement>
 }
 
-const InstrumentSelector: FC<InstrumentSelectorProps> = ({
-    isOpen,
-    onClose,
-    onSelect,
-    triggerRef,
-}) => {
+
+const InstrumentSelector: FC<InstrumentSelectorProps> = (props) => {
     const [searchTerm, setSearchTerm] = useState('')
     const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -28,7 +24,7 @@ const InstrumentSelector: FC<InstrumentSelectorProps> = ({
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as Node
             if (!popoverRef.current?.contains(target)) {
-                onClose()
+                props.onClose()
             }
         }
 
@@ -37,24 +33,25 @@ const InstrumentSelector: FC<InstrumentSelectorProps> = ({
         return () => {
             document.removeEventListener('mousedown', handleClickOutside)
         }
-    }, [isOpen, onClose, triggerRef])
+    }, [props.isOpen, props.onClose, props.triggerRef])
 
-    const symbols = symbolsQuery.data?.status === 200 ? symbolsQuery.data.data : []
+    const symbols =
+        symbolsQuery.data?.status === 200 ? symbolsQuery.data.data : []
 
     const filteredSymbols = symbols.filter((symbol) =>
         symbol.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     const handleSelect = (symbol: string) => {
-        onSelect(symbol)
-        onClose()
+        props.onSelect(symbol)
+        props.onClose()
     }
 
-    if (!isOpen) {
+    if (!props.isOpen) {
         return null
     }
 
-    const triggerRect = triggerRef.current?.getBoundingClientRect()
+    const triggerRect = props.triggerRef.current?.getBoundingClientRect()
     const style = triggerRect
         ? {
               top: `${triggerRect.bottom + 8}px`,

@@ -8,18 +8,21 @@ const FormFieldWithToggle: FC<{
     value: number | null
     checked: boolean
     onToggle: (checked: boolean) => void
-}> = ({ label, name, value, checked, onToggle }) => (
+}> = (props) => (
     <div className="space-y-1">
         <div className="flex items-center justify-between">
-            <label className="text-sm">{label}</label>
-            <Checkbox checked={checked} onCheckedChange={onToggle} />
+            <label className="text-sm">{props.label}</label>
+            <Checkbox
+                checked={props.checked}
+                onCheckedChange={props.onToggle}
+            />
         </div>
         <Input
             type="number"
-            name={name}
-            defaultValue={value ?? ''}
+            name={props.name}
+            defaultValue={props.value ?? ''}
             step={0.01}
-            disabled={!checked}
+            disabled={!props.checked}
         />
     </div>
 )
